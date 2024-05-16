@@ -6,7 +6,8 @@ export default defineConfig({
   plugins: [vue()],
   css: {
     preprocessorOptions: {
-      scss: {}
+      scss: {
+      }
     }
   },
   define: {

@@ -5,13 +5,14 @@
   display: flex;
   justify-content: end;
   align-items: center;
-  background-color: #e0e0e0;
+  background-color: var(--color-nav-bg);
 
   .btn {
     width: 32px;
     height: 32px;
     font-size: large;
-    background-color: #e0e0e0;
+    color: var(--color-text);
+    background-color: var(--color-btn-bg);
     border: none;
     cursor: pointer;
     display: flex;
@@ -19,7 +20,7 @@
     align-items: center;
 
     &:hover {
-      background-color: #d0d0d0;
+      background-color: var(--color-btn-hover-bg);
     }
   }
 }

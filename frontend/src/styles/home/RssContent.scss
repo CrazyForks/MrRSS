@@ -1,6 +1,7 @@
 article {
   padding: 32px;
-  background-color: #f9f9f9;
+  color: var(--color-text);
+  background-color: var(--color-listitem-bg);
   overflow-x: hidden;
   overflow-y: scroll;
 
@@ -9,16 +10,16 @@ article {
   }
 
   &::-webkit-scrollbar-thumb {
-    background-color: #ccc;
+    background-color: var(--color-scrollbar-thumb-bg);
     cursor: pointer;
 
     &:hover {
-      background-color: #999;
+      background-color: var(--color-scrollbar-thumb-hover-bg);
     }
   }
 
   &::-webkit-scrollbar-track {
-    background-color: #f1f1f1;
+    background-color: var(--color-scrollbar-track-bg);
   }
 
   h1 {
@@ -57,7 +58,7 @@ article {
     }
 
     time {
-      color: #666;
+      color: var(--color-text-gray);
     }
   }
 
@@ -89,20 +90,20 @@ article {
 
     &:deep(a) {
       text-decoration: underline;
-      color: #666;
+      color: var(--color-text-gray);
     }
 
     &:deep(a:hover) {
-      color: #333;
+      color: var(--color-text-gray);
     }
 
     &:deep(blockquote) {
       margin-left: 8px;
       margin-right: 8px;
       padding: 8px;
-      border-left: 2px solid #666;
-      color: #666;
-      background-color: #f0f0f0;
+      border-left: 2px solid var(--color-content-block-border);
+      color: var(--color-text-gray);
+      background-color: var(--color-content-block-bg);
     }
 
     &:deep(img) {
@@ -122,15 +123,15 @@ article {
       margin-top: 16px;
       margin-bottom: 16px;
       padding: 8px;
-      border: 1px solid #666;
-      background-color: #f0f0f0;
+      border: 1px solid var(--color-content-block-border);
+      background-color: var(--color-content-block-bg);
       white-space: pre-wrap;
       font-family: 'Fira Code', monospace;
     }
 
     &:deep(code) {
       text-align: left;
-      background-color: #f0f0f0;
+      background-color: var(--color-content-block-bg);
       padding: 2px;
       border-radius: 4px;
       font-family: 'Fira Code', monospace;
@@ -142,20 +143,20 @@ article {
     }
 
     &:deep(th, td) {
-      border: 1px solid #666;
+      border: 1px solid var(--color-content-block-border);
       padding: 8px;
     }
 
     &:deep(th) {
-      background-color: #f0f0f0;
+      background-color: var(--color-content-block-bg);
     }
 
     &:deep(tr:nth-child(even)) {
-      background-color: #f9f9f9;
+      background-color: var(--color-content-table-bg-even);
     }
 
     &:deep(tr:nth-child(odd)) {
-      background-color: #f0f0f0;
+      background-color: var(--color-content-table-bg-odd);
     }
 
     &:deep(iframe) {
@@ -167,7 +168,7 @@ article {
       margin-top: 32px;
       margin-bottom: 32px;
       border: none;
-      border-top: 1px solid #666;
+      border-top: 1px solid var(--color-content-block-border);
     }
 
     &:deep(figure) {
@@ -178,7 +179,7 @@ article {
     &:deep(figcaption) {
       text-align: center;
       font-size: small;
-      color: #666;
+      color: var(--color-content-block-border);
     }
 
     &:deep(button) {

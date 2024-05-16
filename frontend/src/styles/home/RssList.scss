@@ -9,16 +9,16 @@ ul {
   }
 
   &::-webkit-scrollbar-thumb {
-    background-color: #ccc;
+    background-color: var(--color-scrollbar-thumb-bg);
     cursor: pointer;
 
     &:hover {
-      background-color: #999;
+      background-color: var(--color-scrollbar-thumb-hover-bg);
     }
   }
 
   &::-webkit-scrollbar-track {
-    background-color: #f1f1f1;
+    background-color: var(--color-scrollbar-track-bg);
   }
 
   li {
@@ -27,10 +27,10 @@ ul {
     .ListItem {
       display: flex;
       border: none;
-      border-top: 0.5px solid #ccc;
+      border-top: 0.5px solid var(--color-listitem-border);
       text-decoration: none;
-      color: #333;
-      background-color: #f9f9f9;
+      color: var(--color-listitem-text);
+      background-color: var(--color-listitem-bg);
       width: 100%;
       height: 100%;
       padding: 8px;

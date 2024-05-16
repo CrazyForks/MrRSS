@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { ref, watchEffect, onMounted } from 'vue';
 import { Icon } from '@iconify/vue';
+import { useI18n } from 'vue-i18n';
 
 import { GetFeedList, SetFeedList, DeleteFeedList } from '../../../wailsjs/go/main/App'
+
+const { t } = useI18n();
 
 type FeedList = {
   Link: string
@@ -45,13 +48,13 @@ watchEffect(() => {
       subscribeUrlLabel.value = 'URL';
       break;
     case 'Twitter':
-      subscribeUrlLabel.value = 'Username';
+      subscribeUrlLabel.value = t('Settings.RssSettings.username');
       break;
     case 'Telegram':
       subscribeUrlLabel.value = 'ID';
       break;
     case 'Youtube':
-      subscribeUrlLabel.value = 'Username';
+      subscribeUrlLabel.value = t('Settings.RssSettings.username');
       break;
     case 'Wechat':
       subscribeUrlLabel.value = 'ID';
@@ -68,18 +71,18 @@ onMounted(() => {
 
 <template>
   <form name="new feed">
-    <label for="subscribe-type">RSS Type</label>
+    <label for="subscribe-type">{{ $t('Settings.RssSettings.type') }}</label>
     <select id="subscribe-type" name="subscribe-type" v-model="selectedSubscribeType">
       <option value="RSS/Atom" selected>RSS/Atom</option>
-      <option value="Twitter">Twitter</option>
-      <option value="Telegram">Telegram</option>
-      <option value="Youtube">Youtube</option>
-      <option value="Wechat">Wechat Public Account</option>
+      <option value="Twitter" disabled>Twitter</option>
+      <option value="Telegram" disabled>Telegram</option>
+      <option value="Youtube" disabled>Youtube</option>
+      <option value="Wechat" disabled>{{ $t('Settings.RssSettings.wechat') }}</option>
     </select>
     <label for="subscribe-url">{{ subscribeUrlLabel }}</label>
     <input type="text" id="subscribe-url" name="subscribe-url" v-model="subscribeUrl" autocomplete="off"
       placeholder="https://feeds.bbci.co.uk/news/world/rss.xml" required />
-    <button @click.prevent="setFeedList" class="btn" title="Add feed">
+    <button @click.prevent="setFeedList" class="btn" :title="$t('Settings.RssSettings.add')">
       <Icon icon="material-symbols:forms-add-on" />
     </button>
   </form>
@@ -90,7 +93,7 @@ onMounted(() => {
       </div>
       <span class="link">{{ feed.Link }}</span>
       <span class="category">{{ feed.Category }}</span>
-      <button @click="deleteFeedList(feed)" class="btn" title="Delete feed">
+      <button @click="deleteFeedList(feed)" class="btn" :title="$t('Settings.RssSettings.delete')">
         <Icon icon="material-symbols:delete-forever" />
       </button>
     </li>

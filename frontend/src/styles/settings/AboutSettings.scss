@@ -1,11 +1,12 @@
 h2 {
   margin: 8px 0;
+  color: var(--color-text);
 }
 
 h4 {
   margin: 0;
   font-weight: 400;
-  color: #666;
+  color: var(--color-text-gray);
 }
 
 .logo {
@@ -21,13 +22,14 @@ h4 {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  color: var(--color-text);
 
   .btn {
     width: 32px;
     height: 32px;
     font-size: large;
-    color: black;
-    background-color: #e0e0e0;
+    color: var(--color-text);
+    background-color: var(--color-btn-bg);
     border: none;
     border-radius: 50%;
     cursor: pointer;
@@ -36,7 +38,7 @@ h4 {
     align-items: center;
 
     &:hover {
-      background-color: #d0d0d0;
+      background-color: var(--color-btn-hover-bg);
     }
   }
 }
@@ -46,8 +48,9 @@ h4 {
   flex-direction: column;
   align-items: center;
   font-size: small;
+  color: var(--color-text);
 
   a {
-    color: #000;
+    color: var(--color-text);
   }
 }

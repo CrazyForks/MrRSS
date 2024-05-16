@@ -1,106 +1,46 @@
 package feed
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
-	"net/url"
 	"regexp"
 	"sort"
 	"time"
-
-	"github.com/mmcdole/gofeed"
 
 	"MrRSS/backend"
 	"MrRSS/backend/history"
 )
 
-type FeedOriginContentsInfo struct {
-	Title string
-	Image string
-	Item  gofeed.Item
-}
-
 func GetFeedContent(db *sql.DB) []backend.FeedContentsInfo {
 	feedList := GetFeedList(db)
 
-	var feedOriginContent []FeedOriginContentsInfo
+	result := []backend.FeedContentsInfo{}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
-	feedParser := gofeed.NewParser()
+	rssLinks := []string{}
 
 	for _, feed := range feedList {
-		link := feed.Link
-		feed, err := feedParser.ParseURLWithContext(link, ctx)
-		if err != nil {
-			continue
-		}
-
-		for _, item := range feed.Items {
-			// Get the URL of the feed
-			u, err := url.Parse(feed.Link)
-			if err != nil {
-				panic(err)
-			}
-
-			// Get the image URL for the feed
-			imageUrl := "https://www.google.com/s2/favicons?sz=16&domain=" + u.Host
-			if feed.Image != nil {
-				imageUrl = feed.Image.URL
-			}
-
-			// Append the item to the feedOriginContent
-			feedOriginContent = append(feedOriginContent, FeedOriginContentsInfo{
-				Title: feed.Title,
-				Image: imageUrl,
-				Item:  *item,
-			})
+		if feed.Category == "RSS/Atom" {
+			rssLinks = append(rssLinks, feed.Link)
+		} else {
+			fmt.Println("Unknown category: ", feed.Category)
 		}
 	}
 
-	sort.Slice(feedOriginContent, func(i, j int) bool {
-		return feedOriginContent[i].Item.PublishedParsed.After(*feedOriginContent[j].Item.PublishedParsed)
+	rssContent := getRssContent(rssLinks)
+	result = append(result, rssContent...)
+
+	// sort
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Time > result[j].Time
 	})
 
-	var feedContent []backend.FeedContentsInfo
-
-	for _, item := range feedOriginContent {
-		// Get the image URL
-		imageURL := ""
-		filterImageUrl := filterImage(item.Item.Content)
-		if item.Item.Image != nil {
-			imageURL = item.Item.Image.URL
-		} else if filterImageUrl != nil {
-			imageURL = *filterImageUrl
+	for _, item := range result {
+		if history.CheckInHistory(db, item) {
+			item.Readed = history.GetHistoryReaded(db, item)
 		}
-
-		// Get the time since the item was published
-		timeSinceStr := getTimeSince(item.Item.PublishedParsed)
-
-		feedContentItem := backend.FeedContentsInfo{
-			FeedTitle: item.Title,
-			FeedImage: item.Image,
-			Title:     item.Item.Title,
-			Link:      item.Item.Link,
-			TimeSince: timeSinceStr,
-			Time:      item.Item.PublishedParsed.Format("2006-01-02 15:04"),
-			Image:     imageURL,
-			Content:   item.Item.Content,
-			Readed:    false,
-		}
-
-		// Check if the item is in the history
-		if history.CheckInHistory(db, feedContentItem) {
-			feedContentItem.Readed = history.GetHistoryReaded(db, feedContentItem)
-		}
-
-		// Append the item to the feedContent
-		feedContent = append(feedContent, feedContentItem)
 	}
 
-	return feedContent
+	return result
 }
 
 func filterImage(content string) *string {

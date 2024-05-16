@@ -10,7 +10,7 @@ const props = defineProps({
 <template>
   <ul>
     <li v-for="feed in feedContent.feedList" :key="feed.Title" @click="$emit('feed-clicked', feed)">
-      <button class="ListItem" title="Read more">
+      <button class="ListItem" :title="$t('Home.RssList.readMore')">
         <img v-if="feed.Image" :src="feed.Image" :alt="`Image of post: ${feed.Title}`" class="Image" />
         <div class="Info">
           <div class="RssInfo">
@@ -21,7 +21,8 @@ const props = defineProps({
             </div>
             <time>{{ feed.TimeSince }}</time>
           </div>
-          <p class="Title" :style="{ color: feed.Readed ? 'gray' : 'black' }">{{ feed.Title }}</p>
+          <p class="Title" :style="{ color: feed.Readed ? 'var(--color-text-gray)' : 'var(--color-text)' }">{{ feed.Title }}
+          </p>
         </div>
       </button>
     </li>

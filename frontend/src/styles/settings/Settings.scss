@@ -3,7 +3,8 @@
   height: 32px;
   font-size: large;
   color: black;
-  background-color: #e0e0e0;
+  color: var(--color-text);
+  background-color: var(--color-btn-bg);
   border: none;
   cursor: pointer;
 
@@ -13,7 +14,7 @@
 }
 
 .btn:hover {
-  background-color: #d0d0d0;
+  background-color: var(--color-btn-hover-bg);
 }
 
 .settings {
@@ -21,7 +22,8 @@
   flex-direction: column;
   align-items: center;
   gap: 32px;
-  background-color: #f0f0f0;
+  color: var(--color-text);
+  background-color: var(--color-bg);
   width: 100%;
   min-height: calc(100vh - 64px);
   margin: 0 auto;
@@ -46,6 +48,11 @@
       align-items: center;
       justify-content: center;
       gap: 16px;
+
+      h1 {
+        font-size: 32px;
+        font-weight: bold;
+      }
 
       .done {
         height: 48px;
@@ -72,11 +79,11 @@
       }
 
       .router-link-active {
-        border-bottom: 2px solid #000;
+        border-bottom: 2px solid var(--color-text);
       }
 
       &>:not(.router-link-active) {
-        border-bottom: 2px solid #e0e0e0;
+        border-bottom: 2px solid var(--color-btn-bg);
       }
     }
   }

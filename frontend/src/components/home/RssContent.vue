@@ -9,8 +9,7 @@ const props = defineProps({
     <h1>{{ selectedFeed.Title }}</h1>
     <div class="RssInfo">
       <div class="RssTitle">
-        <img v-if="selectedFeed.FeedImage" :src="selectedFeed.FeedImage"
-          :alt="`Image of feed: ${selectedFeed.FeedTitle}`" class="RssImage" />
+        <img v-if="selectedFeed.FeedImage" :src="selectedFeed.FeedImage" :alt="$t('Home.RssContent.feedIcon', {feed: `${selectedFeed.FeedTitle}`})" class="RssImage" />
         <p>{{ selectedFeed.FeedTitle }}</p>
       </div>
       <time>{{ selectedFeed.Time }}</time>
