@@ -86,8 +86,7 @@ func (db *DB) Init() error {
 		addColumn(1, "feeds", "category", "TEXT DEFAULT ''")
 		// Migration v2: Add image_url to feeds
 		addColumn(2, "feeds", "image_url", "TEXT DEFAULT ''")
-		// Migration v3: Add summary and image_url to articles
-		addColumn(3, "articles", "summary", "TEXT DEFAULT ''")
+		// Migration v3: Add image_url to articles (summary removed in v6, so don't add it)
 		addColumn(3, "articles", "image_url", "TEXT DEFAULT ''")
 		// Migration v4: Add translated_title to articles
 		addColumn(4, "articles", "translated_title", "TEXT DEFAULT ''")
@@ -259,8 +258,8 @@ func (db *DB) GetFeeds() ([]models.Feed, error) {
 
 func (db *DB) SaveArticle(article *models.Article) error {
 	db.WaitForReady()
-	query := `INSERT OR IGNORE INTO articles (feed_id, title, url, image_url, published_at, translated_title) VALUES (?, ?, ?, ?, ?, ?)`
-	_, err := db.Exec(query, article.FeedID, article.Title, article.URL, article.ImageURL, article.PublishedAt, article.TranslatedTitle)
+	query := `INSERT OR IGNORE INTO articles (feed_id, title, url, image_url, published_at, translated_title, is_read, is_favorite) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+	_, err := db.Exec(query, article.FeedID, article.Title, article.URL, article.ImageURL, article.PublishedAt, article.TranslatedTitle, article.IsRead, article.IsFavorite)
 	return err
 }
 
@@ -272,7 +271,7 @@ func (db *DB) SaveArticles(ctx context.Context, articles []*models.Article) erro
 	}
 	defer tx.Rollback()
 
-	stmt, err := tx.PrepareContext(ctx, `INSERT OR IGNORE INTO articles (feed_id, title, url, image_url, published_at, translated_title) VALUES (?, ?, ?, ?, ?, ?)`)
+	stmt, err := tx.PrepareContext(ctx, `INSERT OR IGNORE INTO articles (feed_id, title, url, image_url, published_at, translated_title, is_read, is_favorite) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return err
 	}
@@ -286,7 +285,7 @@ func (db *DB) SaveArticles(ctx context.Context, articles []*models.Article) erro
 		default:
 		}
 
-		_, err := stmt.ExecContext(ctx, article.FeedID, article.Title, article.URL, article.ImageURL, article.PublishedAt, article.TranslatedTitle)
+		_, err := stmt.ExecContext(ctx, article.FeedID, article.Title, article.URL, article.ImageURL, article.PublishedAt, article.TranslatedTitle, article.IsRead, article.IsFavorite)
 		if err != nil {
 			log.Println("Error saving article in batch:", err)
 			// Continue even if one fails
@@ -408,4 +407,66 @@ func (db *DB) SetSetting(key, value string) error {
 	db.WaitForReady()
 	_, err := db.Exec("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", key, value)
 	return err
+}
+
+// CleanupOldArticles removes articles based on age and status
+// - Articles older than 1 week: delete except read OR favorited
+// - Articles older than 1 month: delete except favorited
+func (db *DB) CleanupOldArticles() (int64, error) {
+	db.WaitForReady()
+	
+	oneWeekAgo := time.Now().AddDate(0, 0, -7)
+	oneMonthAgo := time.Now().AddDate(0, -1, 0)
+	
+	// Delete articles older than 1 month that are not favorited
+	result1, err := db.Exec(`
+		DELETE FROM articles 
+		WHERE published_at < ? 
+		AND is_favorite = 0
+	`, oneMonthAgo)
+	if err != nil {
+		return 0, err
+	}
+	
+	count1, _ := result1.RowsAffected()
+	
+	// Delete articles older than 1 week (but less than 1 month) that are not read and not favorited
+	result2, err := db.Exec(`
+		DELETE FROM articles 
+		WHERE published_at < ? 
+		AND published_at >= ?
+		AND is_read = 0 
+		AND is_favorite = 0
+	`, oneWeekAgo, oneMonthAgo)
+	if err != nil {
+		return count1, err
+	}
+	
+	count2, _ := result2.RowsAffected()
+	
+	// Run VACUUM to reclaim space
+	_, _ = db.Exec("VACUUM")
+	
+	return count1 + count2, nil
+}
+
+// CleanupUnimportantArticles removes all articles except read and favorited ones
+func (db *DB) CleanupUnimportantArticles() (int64, error) {
+	db.WaitForReady()
+	
+	result, err := db.Exec(`
+		DELETE FROM articles 
+		WHERE is_read = 0 
+		AND is_favorite = 0
+	`)
+	if err != nil {
+		return 0, err
+	}
+	
+	count, _ := result.RowsAffected()
+	
+	// Run VACUUM to reclaim space
+	_, _ = db.Exec("VACUUM")
+	
+	return count, nil
 }

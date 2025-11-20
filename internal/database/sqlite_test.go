@@ -243,3 +243,175 @@ func BenchmarkGetArticles(b *testing.B) {
 		}
 	}
 }
+
+func TestCleanupOldArticles(t *testing.T) {
+	// Create temporary database
+	dbFile := "test_cleanup.db"
+	defer os.Remove(dbFile)
+
+	db, err := NewDB(dbFile)
+	if err != nil {
+		t.Fatalf("Failed to create database: %v", err)
+	}
+	defer db.Close()
+
+	err = db.Init()
+	if err != nil {
+		t.Fatalf("Failed to initialize database: %v", err)
+	}
+
+	// Add test feed
+	feed := &models.Feed{
+		Title:       "Test Feed",
+		URL:         "https://example.com/test",
+		Description: "Test Description",
+	}
+	err = db.AddFeed(feed)
+	if err != nil {
+		t.Fatalf("Failed to add feed: %v", err)
+	}
+
+	feeds, _ := db.GetFeeds()
+	feedID := feeds[0].ID
+
+	// Insert test articles with different ages and statuses
+	now := time.Now()
+	articles := []*models.Article{
+		// Old (>1 month) not favorited - should be deleted
+		{FeedID: feedID, Title: "Old 1", URL: "https://example.com/old1", PublishedAt: now.AddDate(0, -2, 0), IsRead: false, IsFavorite: false},
+		{FeedID: feedID, Title: "Old 2", URL: "https://example.com/old2", PublishedAt: now.AddDate(0, -2, 0), IsRead: true, IsFavorite: false},
+		// Old (>1 month) favorited - should be kept
+		{FeedID: feedID, Title: "Old Fav", URL: "https://example.com/oldfav", PublishedAt: now.AddDate(0, -2, 0), IsRead: false, IsFavorite: true},
+		// Week old unread not favorited - should be deleted
+		{FeedID: feedID, Title: "Week Old Unread", URL: "https://example.com/weekold", PublishedAt: now.AddDate(0, 0, -8), IsRead: false, IsFavorite: false},
+		// Week old read - should be kept
+		{FeedID: feedID, Title: "Week Old Read", URL: "https://example.com/weekoldread", PublishedAt: now.AddDate(0, 0, -8), IsRead: true, IsFavorite: false},
+		// Recent - should be kept
+		{FeedID: feedID, Title: "Recent", URL: "https://example.com/recent", PublishedAt: now.AddDate(0, 0, -1), IsRead: false, IsFavorite: false},
+	}
+
+	for _, article := range articles {
+		err = db.SaveArticle(article)
+		if err != nil {
+			t.Fatalf("Failed to save article: %v", err)
+		}
+	}
+
+	// Verify initial count
+	allArticles, _ := db.GetArticles("", feedID, "", 100, 0)
+	if len(allArticles) != 6 {
+		t.Errorf("Expected 6 articles initially, got %d", len(allArticles))
+	}
+	for _, a := range allArticles {
+		t.Logf("Before cleanup: %s (read: %v, fav: %v, published: %v)", a.Title, a.IsRead, a.IsFavorite, a.PublishedAt)
+	}
+
+	// Run cleanup
+	count, err := db.CleanupOldArticles()
+	if err != nil {
+		t.Fatalf("Failed to cleanup articles: %v", err)
+	}
+
+	t.Logf("Cleaned up %d articles", count)
+
+	// Verify cleanup results
+	remainingArticles, _ := db.GetArticles("", feedID, "", 100, 0)
+	t.Logf("Remaining articles: %d", len(remainingArticles))
+
+	// Should have: Old Fav (1) + Week Old Read (1) + Recent (1) = 3
+	if len(remainingArticles) != 3 {
+		t.Errorf("Expected 3 articles after cleanup, got %d", len(remainingArticles))
+		for _, a := range remainingArticles {
+			t.Logf("  - %s (read: %v, fav: %v, published: %v)", a.Title, a.IsRead, a.IsFavorite, a.PublishedAt)
+		}
+	}
+
+	// Verify the right articles remain
+	titles := make(map[string]bool)
+	for _, a := range remainingArticles {
+		titles[a.Title] = true
+	}
+
+	expectedTitles := []string{"Old Fav", "Week Old Read", "Recent"}
+	for _, expected := range expectedTitles {
+		if !titles[expected] {
+			t.Errorf("Expected article '%s' to remain after cleanup", expected)
+		}
+	}
+}
+
+func TestCleanupUnimportantArticles(t *testing.T) {
+	// Create temporary database
+	dbFile := "test_cleanup_unimportant.db"
+	defer os.Remove(dbFile)
+
+	db, err := NewDB(dbFile)
+	if err != nil {
+		t.Fatalf("Failed to create database: %v", err)
+	}
+	defer db.Close()
+
+	err = db.Init()
+	if err != nil {
+		t.Fatalf("Failed to initialize database: %v", err)
+	}
+
+	// Add test feed
+	feed := &models.Feed{
+		Title:       "Test Feed",
+		URL:         "https://example.com/test",
+		Description: "Test Description",
+	}
+	err = db.AddFeed(feed)
+	if err != nil {
+		t.Fatalf("Failed to add feed: %v", err)
+	}
+
+	feeds, _ := db.GetFeeds()
+	feedID := feeds[0].ID
+
+	// Insert test articles
+	articles := []*models.Article{
+		{FeedID: feedID, Title: "Unread Unfav", URL: "https://example.com/1", PublishedAt: time.Now(), IsRead: false, IsFavorite: false},
+		{FeedID: feedID, Title: "Read Unfav", URL: "https://example.com/2", PublishedAt: time.Now(), IsRead: true, IsFavorite: false},
+		{FeedID: feedID, Title: "Unread Fav", URL: "https://example.com/3", PublishedAt: time.Now(), IsRead: false, IsFavorite: true},
+		{FeedID: feedID, Title: "Read Fav", URL: "https://example.com/4", PublishedAt: time.Now(), IsRead: true, IsFavorite: true},
+	}
+
+	for _, article := range articles {
+		err = db.SaveArticle(article)
+		if err != nil {
+			t.Fatalf("Failed to save article: %v", err)
+		}
+	}
+
+	// Run cleanup
+	count, err := db.CleanupUnimportantArticles()
+	if err != nil {
+		t.Fatalf("Failed to cleanup articles: %v", err)
+	}
+
+	// Should delete 1 article (Unread Unfav)
+	if count != 1 {
+		t.Errorf("Expected to delete 1 article, deleted %d", count)
+	}
+
+	// Verify remaining articles
+	remainingArticles, _ := db.GetArticles("", feedID, "", 100, 0)
+	if len(remainingArticles) != 3 {
+		t.Errorf("Expected 3 articles after cleanup, got %d", len(remainingArticles))
+	}
+
+	// Verify the right articles remain
+	titles := make(map[string]bool)
+	for _, a := range remainingArticles {
+		titles[a.Title] = true
+	}
+
+	expectedTitles := []string{"Read Unfav", "Unread Fav", "Read Fav"}
+	for _, expected := range expectedTitles {
+		if !titles[expected] {
+			t.Errorf("Expected article '%s' to remain after cleanup", expected)
+		}
+	}
+}
