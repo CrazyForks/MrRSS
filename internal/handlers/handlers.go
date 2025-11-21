@@ -16,6 +16,7 @@ import (
 	"MrRSS/internal/feed"
 	"MrRSS/internal/opml"
 	"MrRSS/internal/translation"
+	"MrRSS/internal/version"
 )
 
 type Handler struct {
@@ -395,7 +396,7 @@ func (h *Handler) HandleCheckUpdates(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	const currentVersion = "1.1.0"
+	currentVersion := version.Version
 	const githubAPI = "https://api.github.com/repos/WCY-dt/MrRSS/releases/latest"
 
 	resp, err := http.Get(githubAPI)
@@ -479,4 +480,16 @@ func compareVersions(v1, v2 string) int {
 	}
 
 	return 0
+}
+
+// HandleVersion returns the current application version
+func (h *Handler) HandleVersion(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{
+		"version": version.Version,
+	})
 }

@@ -18,8 +18,21 @@ const settings = ref({
 
 const updateInfo = ref(null);
 const checkingUpdates = ref(false);
+const appVersion = ref('1.1.0');
 
 onMounted(async () => {
+    // Fetch current version from API
+    try {
+        const versionRes = await fetch('/api/version');
+        if (versionRes.ok) {
+            const versionData = await versionRes.json();
+            appVersion.value = versionData.version;
+        }
+    } catch (e) {
+        console.error('Error fetching version:', e);
+    }
+
+    // Fetch settings
     try {
         const res = await fetch('/api/settings');
         const data = await res.json();
@@ -427,7 +440,7 @@ async function checkForUpdates() {
                     <img src="/assets/logo.svg" alt="Logo" class="h-16 w-auto mb-4 mx-auto">
                     <h3 class="text-xl font-bold mb-2">{{ store.i18n.t('appName') }}</h3>
                     <p class="text-text-secondary">{{ store.i18n.t('aboutApp') }}</p>
-                    <p class="text-text-secondary text-sm mt-2">{{ store.i18n.t('version') }} 1.1.0</p>
+                    <p class="text-text-secondary text-sm mt-2">{{ store.i18n.t('version') }} {{ appVersion }}</p>
                     
                     <div class="mt-6 mb-6">
                         <button @click="checkForUpdates" :disabled="checkingUpdates" class="btn-secondary justify-center">

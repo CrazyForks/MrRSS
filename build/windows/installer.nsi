@@ -54,7 +54,7 @@ VIAddVersionKey "FileDescription" "${APP_DESCRIPTION}"
 VIAddVersionKey "FileVersion" "${APP_VERSION}"
 VIAddVersionKey "ProductVersion" "${APP_VERSION}"
 VIAddVersionKey "CompanyName" "${APP_PUBLISHER}"
-VIAddVersionKey "LegalCopyright" "Copyright (C) 2025 ${APP_PUBLISHER}"
+VIAddVersionKey "LegalCopyright" "Copyright (C) ${APP_PUBLISHER}"
 
 ; Installer Sections
 Section "MainSection" SEC01
