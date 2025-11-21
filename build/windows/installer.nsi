@@ -1,5 +1,10 @@
 ; MrRSS NSIS Installer Script
 ; This script creates a Windows installer for MrRSS
+;
+; IMPORTANT: This script must be run from the repository root directory:
+;   makensis build/windows/installer.nsi
+; 
+; All paths in this script are relative to the repository root.
 
 !define APP_NAME "MrRSS"
 !define APP_VERSION "1.1.0"
@@ -13,7 +18,8 @@
 
 ; General Settings
 Name "${APP_NAME} ${APP_VERSION}"
-OutFile "build\bin\MrRSS-${APP_VERSION}-windows-amd64-installer.exe"
+; Note: Output path assumes makensis is run from repository root
+OutFile ".\build\bin\MrRSS-${APP_VERSION}-windows-amd64-installer.exe"
 InstallDir "$PROGRAMFILES64\${APP_NAME}"
 InstallDirRegKey HKLM "Software\${APP_NAME}" "Install_Dir"
 RequestExecutionLevel admin
@@ -31,7 +37,8 @@ RequestExecutionLevel admin
 !insertmacro MUI_PAGE_WELCOME
 
 ; License page
-!insertmacro MUI_PAGE_LICENSE "LICENSE"
+; Note: LICENSE file must be in repository root when running makensis
+!insertmacro MUI_PAGE_LICENSE ".\LICENSE"
 
 ; Directory page
 !insertmacro MUI_PAGE_DIRECTORY
@@ -65,7 +72,8 @@ Section "MainSection" SEC01
     SetOutPath "$INSTDIR"
     
     ; Copy the executable
-    File "build\bin\${APP_EXE}"
+    ; Note: Assumes makensis is run from repository root
+    File ".\build\bin\${APP_EXE}"
     
     ; Create shortcuts
     CreateDirectory "$SMPROGRAMS\${APP_NAME}"
