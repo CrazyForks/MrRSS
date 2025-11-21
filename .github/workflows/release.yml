@@ -221,6 +221,13 @@ jobs:
           Compress-Archive -Path MrRSS.exe -DestinationPath MrRSS-${{ needs.create-release.outputs.version }}-windows-amd64.zip
         shell: pwsh
       
+      - name: Package application (macOS - zip fallback)
+        if: matrix.platform == 'darwin'
+        run: |
+          cd build/bin
+          # Create a zip of the .app bundle
+          zip -r MrRSS-${{ needs.create-release.outputs.version }}-darwin-universal.zip MrRSS.app
+      
       - name: Upload Windows Installer
         if: matrix.platform == 'windows'
         uses: actions/upload-release-asset@v1
