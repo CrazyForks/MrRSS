@@ -9,16 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Automatically detects user's operating system and CPU architecture and ownloads appropriate installer from GitHub releases. Then launches installer and prepares for update
+- Automatically detects user's operating system and CPU architecture and downloads appropriate installer from GitHub releases. Then launches installer and prepares for update
 - Multi-Platform Support:
-  - Windows: x64 (amd64), ARM64, x86 (386)
-  - Linux: x64 (amd64), ARM64 (aarch64), x86 (386)
-  - macOS: Apple Silicon (arm64), Intel (amd64)
+  - Windows: x64 (amd64), ARM64
+  - Linux: x64 (amd64), ARM64 (aarch64)
+  - macOS: Universal (Intel & Apple Silicon)
 - Visual feedback during update download and installation
 
 ### Changed
 
-- Removed macOS Universal Build
+- Removed 32-bit (386) architecture support for Windows and Linux
+- Consolidated macOS builds into a single universal binary supporting both Intel and Apple Silicon
 
 ## [1.1.2] - 2025-11-22
 

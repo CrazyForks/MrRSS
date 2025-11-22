@@ -165,10 +165,6 @@ jobs:
             platform: linux
             arch: arm64
             ext: ''
-          - os: ubuntu-latest
-            platform: linux
-            arch: '386'
-            ext: ''
           # Windows builds
           - os: windows-latest
             platform: windows
@@ -178,18 +174,10 @@ jobs:
             platform: windows
             arch: arm64
             ext: '.exe'
-          - os: windows-latest
-            platform: windows
-            arch: '386'
-            ext: '.exe'
-          # macOS builds
+          # macOS builds (universal only)
           - os: macos-latest
             platform: darwin
-            arch: amd64
-            ext: '.app'
-          - os: macos-latest
-            platform: darwin
-            arch: arm64
+            arch: universal
             ext: '.app'
     
     steps:
@@ -272,13 +260,13 @@ jobs:
         if: matrix.platform == 'linux'
         run: |
           cd build/bin
-          tar -czf MrRSS-${{ needs.create-release.outputs.version }}-linux-amd64.tar.gz MrRSS
+          tar -czf MrRSS-${{ needs.create-release.outputs.version }}-linux-${{ matrix.arch }}.tar.gz MrRSS
       
       - name: Package application (Windows - zip fallback)
         if: matrix.platform == 'windows'
         run: |
           cd build/bin
-          Compress-Archive -Path MrRSS.exe -DestinationPath MrRSS-${{ needs.create-release.outputs.version }}-windows-amd64.zip
+          Compress-Archive -Path MrRSS.exe -DestinationPath MrRSS-${{ needs.create-release.outputs.version }}-windows-${{ matrix.arch }}.zip
         shell: pwsh
       
       - name: Package application (macOS - zip fallback)
@@ -286,7 +274,7 @@ jobs:
         run: |
           cd build/bin
           # Create a zip of the .app bundle
-          zip -r MrRSS-${{ needs.create-release.outputs.version }}-darwin-universal.zip MrRSS.app
+          zip -r MrRSS-${{ needs.create-release.outputs.version }}-darwin-${{ matrix.arch }}.zip MrRSS.app
       
       - name: Upload Windows Installer
         if: matrix.platform == 'windows'
@@ -295,8 +283,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.AUTH_TOKEN }}
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./build/bin/MrRSS-${{ needs.create-release.outputs.version }}-windows-amd64-installer.exe
-          asset_name: MrRSS-${{ needs.create-release.outputs.version }}-windows-amd64-installer.exe
+          asset_path: ./build/bin/MrRSS-${{ needs.create-release.outputs.version }}-windows-${{ matrix.arch }}-installer.exe
+          asset_name: MrRSS-${{ needs.create-release.outputs.version }}-windows-${{ matrix.arch }}-installer.exe
           asset_content_type: application/octet-stream
         continue-on-error: true
       
@@ -307,8 +295,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.AUTH_TOKEN }}
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./build/bin/MrRSS-${{ needs.create-release.outputs.version }}-linux-amd64.AppImage
-          asset_name: MrRSS-${{ needs.create-release.outputs.version }}-linux-amd64.AppImage
+          asset_path: ./build/bin/MrRSS-${{ needs.create-release.outputs.version }}-linux-${{ matrix.arch }}.AppImage
+          asset_name: MrRSS-${{ needs.create-release.outputs.version }}-linux-${{ matrix.arch }}.AppImage
           asset_content_type: application/octet-stream
         continue-on-error: true
       
