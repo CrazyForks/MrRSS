@@ -194,7 +194,7 @@ function onArticleContextMenu(e, article) {
                 { label: article.is_favorite ? store.i18n.t('removeFromFavorites') : store.i18n.t('addToFavorites'), action: 'toggleFavorite', icon: article.is_favorite ? 'ph-star-fill' : 'ph-star' },
                 { separator: true },
                 { label: contentActionLabel, action: 'renderContent', icon: contentActionIcon },
-                { label: article.is_hidden ? store.i18n.t('unhideArticle') : store.i18n.t('hideArticle'), action: 'toggleHide', icon: article.is_hidden ? 'ph-eye' : 'ph-eye-slash' },
+                { label: article.is_hidden ? store.i18n.t('unhideArticle') : store.i18n.t('hideArticle'), action: 'toggleHide', icon: article.is_hidden ? 'ph-eye' : 'ph-eye-slash', danger: !article.is_hidden },
                 { separator: true },
                 { label: store.i18n.t('openInBrowser'), action: 'openBrowser', icon: 'ph-arrow-square-out' }
             ],

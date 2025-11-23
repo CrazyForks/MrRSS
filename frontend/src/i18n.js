@@ -37,6 +37,7 @@ export const translations = {
         unhideArticle: 'Unhide Article',
         selectArticle: 'Select an article to start reading',
         showOriginal: 'Show Original Webpage',
+        openWebsite: 'Open Website',
         
         // Settings Modal
         settingsTitle: 'Settings',
@@ -70,6 +71,8 @@ export const translations = {
         viewModeRendered: 'Rendered Content',
         showHiddenArticles: 'Show Hidden Articles',
         showHiddenArticlesDesc: 'Display articles that have been hidden',
+        startupOnBoot: 'Start on System Boot',
+        startupOnBootDesc: 'Automatically start MrRSS when your computer starts',
         database: 'Database',
         autoCleanup: 'Auto Cleanup',
         autoCleanupDesc: 'Automatically remove old articles to save space',
@@ -218,6 +221,7 @@ export const translations = {
         unhideArticle: '取消隐藏',
         selectArticle: '选择一篇文章开始阅读',
         showOriginal: '显示原网页',
+        openWebsite: '打开网站',
         
         // Settings Modal
         settingsTitle: '设置',
@@ -251,6 +255,8 @@ export const translations = {
         viewModeRendered: '渲染内容',
         showHiddenArticles: '显示隐藏文章',
         showHiddenArticlesDesc: '显示已被隐藏的文章',
+        startupOnBoot: '开机自启动',
+        startupOnBootDesc: '电脑启动时自动启动 MrRSS',
         database: '数据库',
         autoCleanup: '自动清理',
         autoCleanupDesc: '自动删除旧文章以节省空间',

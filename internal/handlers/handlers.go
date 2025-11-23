@@ -292,6 +292,7 @@ func (h *Handler) HandleSettings(w http.ResponseWriter, r *http.Request) {
 		theme, _ := h.DB.GetSetting("theme")
 		lastUpdate, _ := h.DB.GetSetting("last_article_update")
 		showHidden, _ := h.DB.GetSetting("show_hidden_articles")
+		startupOnBoot, _ := h.DB.GetSetting("startup_on_boot")
 		json.NewEncoder(w).Encode(map[string]string{
 			"update_interval":       interval,
 			"translation_enabled":   translationEnabled,
@@ -305,6 +306,7 @@ func (h *Handler) HandleSettings(w http.ResponseWriter, r *http.Request) {
 			"theme":                 theme,
 			"last_article_update":   lastUpdate,
 			"show_hidden_articles":  showHidden,
+			"startup_on_boot":       startupOnBoot,
 		})
 	} else if r.Method == http.MethodPost {
 		var req struct {
@@ -319,6 +321,7 @@ func (h *Handler) HandleSettings(w http.ResponseWriter, r *http.Request) {
 			Language            string `json:"language"`
 			Theme               string `json:"theme"`
 			ShowHiddenArticles  string `json:"show_hidden_articles"`
+			StartupOnBoot       string `json:"startup_on_boot"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -361,6 +364,10 @@ func (h *Handler) HandleSettings(w http.ResponseWriter, r *http.Request) {
 
 		if req.ShowHiddenArticles != "" {
 			h.DB.SetSetting("show_hidden_articles", req.ShowHiddenArticles)
+		}
+
+		if req.StartupOnBoot != "" {
+			h.DB.SetSetting("startup_on_boot", req.StartupOnBoot)
 		}
 
 		w.WriteHeader(http.StatusOK)
@@ -898,9 +905,9 @@ func (h *Handler) HandleInstallUpdate(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Invalid file type for Windows", http.StatusBadRequest)
 			return
 		}
-		// Use cmd.exe to launch installer, which properly handles UAC prompts
-		// Don't use /S (silent) flag to allow user interaction if needed
-		cmd = exec.Command("cmd.exe", "/C", "start", "", cleanPath)
+		// Use start command with proper quoting to handle paths with spaces
+		// The first empty quotes are for the window title
+		cmd = exec.Command("cmd.exe", "/C", "start", "/B", "", cleanPath)
 		scheduleCleanup(cleanPath, 10*time.Second)
 	case "linux":
 		// Make AppImage executable and run it - validate file extension
