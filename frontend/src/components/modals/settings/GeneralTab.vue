@@ -1,6 +1,6 @@
 <script setup>
 import { store } from '../../../store.js';
-import { watch } from 'vue';
+import { watch, onUnmounted } from 'vue';
 
 const props = defineProps({
     settings: { type: Object, required: true }
@@ -48,6 +48,14 @@ function debouncedAutoSave() {
 
 // Watch the entire settings object for changes
 watch(() => props.settings, debouncedAutoSave, { deep: true });
+
+// Clean up timeout on unmount to prevent memory leaks
+onUnmounted(() => {
+    if (saveTimeout) {
+        clearTimeout(saveTimeout);
+        saveTimeout = null;
+    }
+});
 </script>
 
 <template>

@@ -723,6 +723,18 @@ func (h *Handler) HandleInstallUpdate(w http.ResponseWriter, r *http.Request) {
 	platform := runtime.GOOS
 	log.Printf("Installing update from: %s on platform: %s", cleanPath, platform)
 
+	// Helper function to schedule cleanup of installer file
+	scheduleCleanup := func(filePath string, delay time.Duration) {
+		go func() {
+			time.Sleep(delay)
+			if err := os.Remove(filePath); err != nil {
+				log.Printf("Failed to remove installer: %v", err)
+			} else {
+				log.Printf("Successfully removed installer: %s", filePath)
+			}
+		}()
+	}
+
 	// Launch installer based on platform
 	var cmd *exec.Cmd
 	switch platform {
@@ -732,17 +744,8 @@ func (h *Handler) HandleInstallUpdate(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Invalid file type for Windows", http.StatusBadRequest)
 			return
 		}
-		// Launch installer and schedule cleanup in background
 		cmd = exec.Command(cleanPath, "/S")
-		// Schedule cleanup after installer starts
-		go func() {
-			time.Sleep(3 * time.Second)
-			if err := os.Remove(cleanPath); err != nil {
-				log.Printf("Failed to remove installer: %v", err)
-			} else {
-				log.Printf("Successfully removed installer: %s", cleanPath)
-			}
-		}()
+		scheduleCleanup(cleanPath, 3*time.Second)
 	case "linux":
 		// Make AppImage executable and run it - validate file extension
 		if !strings.HasSuffix(strings.ToLower(cleanPath), ".appimage") {
@@ -755,15 +758,7 @@ func (h *Handler) HandleInstallUpdate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		cmd = exec.Command(cleanPath)
-		// Schedule cleanup after installer starts
-		go func() {
-			time.Sleep(3 * time.Second)
-			if err := os.Remove(cleanPath); err != nil {
-				log.Printf("Failed to remove installer: %v", err)
-			} else {
-				log.Printf("Successfully removed installer: %s", cleanPath)
-			}
-		}()
+		scheduleCleanup(cleanPath, 3*time.Second)
 	case "darwin":
 		// Open the DMG file - validate file extension
 		if !strings.HasSuffix(strings.ToLower(cleanPath), ".dmg") {
@@ -771,15 +766,7 @@ func (h *Handler) HandleInstallUpdate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		cmd = exec.Command("open", cleanPath)
-		// Schedule cleanup after opening
-		go func() {
-			time.Sleep(5 * time.Second)
-			if err := os.Remove(cleanPath); err != nil {
-				log.Printf("Failed to remove installer: %v", err)
-			} else {
-				log.Printf("Successfully removed installer: %s", cleanPath)
-			}
-		}()
+		scheduleCleanup(cleanPath, 5*time.Second)
 	default:
 		http.Error(w, "Unsupported platform", http.StatusBadRequest)
 		return
