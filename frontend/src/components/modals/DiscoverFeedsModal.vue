@@ -11,15 +11,15 @@ const props = defineProps({
 const emit = defineEmits(['close']);
 
 const isDiscovering = ref(false);
-const discoveredBlogs = ref([]);
-const selectedBlogs = ref(new Set());
+const discoveredFeeds = ref([]);
+const selectedFeeds = ref(new Set());
 const errorMessage = ref('');
 
 async function startDiscovery() {
     isDiscovering.value = true;
     errorMessage.value = '';
-    discoveredBlogs.value = [];
-    selectedBlogs.value.clear();
+    discoveredFeeds.value = [];
+    selectedFeeds.value.clear();
 
     try {
         const response = await fetch('/api/feeds/discover', {
@@ -30,13 +30,13 @@ async function startDiscovery() {
 
         if (!response.ok) {
             const errorText = await response.text();
-            throw new Error(errorText || 'Failed to discover blogs');
+            throw new Error(errorText || 'Failed to discover feeds');
         }
 
-        const blogs = await response.json();
-        discoveredBlogs.value = blogs || [];
+        const feeds = await response.json();
+        discoveredFeeds.value = feeds || [];
 
-        if (discoveredBlogs.value.length === 0) {
+        if (discoveredFeeds.value.length === 0) {
             errorMessage.value = store.i18n.t('noFriendLinksFound');
         }
     } catch (error) {
@@ -47,39 +47,39 @@ async function startDiscovery() {
     }
 }
 
-function toggleBlogSelection(index) {
-    if (selectedBlogs.value.has(index)) {
-        selectedBlogs.value.delete(index);
+function toggleFeedSelection(index) {
+    if (selectedFeeds.value.has(index)) {
+        selectedFeeds.value.delete(index);
     } else {
-        selectedBlogs.value.add(index);
+        selectedFeeds.value.add(index);
     }
 }
 
 function selectAll() {
-    if (selectedBlogs.value.size === discoveredBlogs.value.length) {
-        selectedBlogs.value.clear();
+    if (selectedFeeds.value.size === discoveredFeeds.value.length) {
+        selectedFeeds.value.clear();
     } else {
-        discoveredBlogs.value.forEach((_, index) => selectedBlogs.value.add(index));
+        discoveredFeeds.value.forEach((_, index) => selectedFeeds.value.add(index));
     }
 }
 
-const hasSelection = computed(() => selectedBlogs.value.size > 0);
-const allSelected = computed(() => discoveredBlogs.value.length > 0 && selectedBlogs.value.size === discoveredBlogs.value.length);
+const hasSelection = computed(() => selectedFeeds.value.size > 0);
+const allSelected = computed(() => discoveredFeeds.value.length > 0 && selectedFeeds.value.size === discoveredFeeds.value.length);
 
 async function subscribeSelected() {
     if (!hasSelection.value) return;
 
     const subscribePromises = [];
     
-    for (const index of selectedBlogs.value) {
-        const blog = discoveredBlogs.value[index];
+    for (const index of selectedFeeds.value) {
+        const feed = discoveredFeeds.value[index];
         const promise = fetch('/api/feeds/add', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                url: blog.rss_feed,
+                url: feed.rss_feed,
                 category: props.feed.category || '',
-                title: blog.name
+                title: feed.name
             })
         });
         subscribePromises.push(promise);
@@ -93,14 +93,14 @@ async function subscribeSelected() {
         await store.fetchFeeds();
         
         if (failed === 0) {
-            window.showToast(store.i18n.t('blogsSubscribedSuccess', { count: successful }), 'success');
+            window.showToast(store.i18n.t('feedsSubscribedSuccess', { count: successful }), 'success');
         } else {
-            window.showToast(store.i18n.t('blogsSubscribedPartial', { successful, failed }), 'warning');
+            window.showToast(store.i18n.t('feedsSubscribedPartial', { successful, failed }), 'warning');
         }
         emit('close');
     } catch (error) {
         console.error('Subscription error:', error);
-        window.showToast(store.i18n.t('errorSubscribingBlogs'), 'error');
+        window.showToast(store.i18n.t('errorSubscribingFeeds'), 'error');
     }
 }
 
@@ -120,9 +120,9 @@ watch(() => props.show, (newShow) => {
     <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" @click.self="close">
         <div class="bg-bg-primary w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl border border-border flex flex-col">
             <!-- Header -->
-            <div class="flex justify-between items-center p-6 border-b border-border">
+            <div class="flex justify-between items-center p-6 border-b border-border bg-gradient-to-r from-accent/5 to-transparent">
                 <div>
-                    <h2 class="text-xl font-bold text-text-primary">{{ store.i18n.t('discoverBlogs') }}</h2>
+                    <h2 class="text-xl font-bold text-text-primary">{{ store.i18n.t('discoverFeeds') }}</h2>
                     <p class="text-sm text-text-secondary mt-1">{{ store.i18n.t('fromFeed') }}: {{ feed.title }}</p>
                 </div>
                 <button @click="close" class="p-2 hover:bg-bg-tertiary rounded-lg transition-colors">
@@ -144,67 +144,71 @@ watch(() => props.show, (newShow) => {
                 </div>
 
                 <!-- Results -->
-                <div v-else-if="discoveredBlogs.length > 0">
-                    <div class="mb-4 flex items-center justify-between">
-                        <p class="text-sm text-text-secondary">
-                            {{ store.i18n.t('foundBlogs', { count: discoveredBlogs.length }) }}
+                <div v-else-if="discoveredFeeds.length > 0">
+                    <div class="mb-4 flex items-center justify-between bg-bg-secondary rounded-lg p-3">
+                        <p class="text-sm font-medium text-text-primary">
+                            {{ store.i18n.t('foundFeeds', { count: discoveredFeeds.length }) }}
                         </p>
-                        <button @click="selectAll" class="text-sm text-accent hover:text-accent-hover font-medium">
+                        <button @click="selectAll" class="text-sm text-accent hover:text-accent-hover font-medium px-3 py-1 rounded hover:bg-accent/10 transition-colors">
                             {{ allSelected ? store.i18n.t('deselectAll') : store.i18n.t('selectAll') }}
                         </button>
                     </div>
 
                     <div class="space-y-3">
-                        <div v-for="(blog, index) in discoveredBlogs" :key="index" 
-                             @click="toggleBlogSelection(index)"
+                        <div v-for="(feed, index) in discoveredFeeds" :key="index" 
+                             @click="toggleFeedSelection(index)"
                              :class="[
-                                 'border border-border rounded-lg p-4 cursor-pointer transition-all',
-                                 selectedBlogs.has(index) 
-                                     ? 'bg-accent/10 border-accent ring-2 ring-accent/20' 
-                                     : 'bg-bg-secondary hover:bg-bg-tertiary'
+                                 'border rounded-xl p-4 cursor-pointer transition-all duration-200',
+                                 selectedFeeds.has(index) 
+                                     ? 'bg-accent/10 border-accent ring-2 ring-accent/20 shadow-md' 
+                                     : 'bg-bg-secondary hover:bg-bg-tertiary border-border hover:shadow-sm'
                              ]">
                             <div class="flex items-start gap-4">
                                 <!-- Checkbox -->
                                 <div class="mt-1 shrink-0">
                                     <div :class="[
                                         'w-5 h-5 rounded border-2 flex items-center justify-center transition-all',
-                                        selectedBlogs.has(index) 
-                                            ? 'bg-accent border-accent' 
+                                        selectedFeeds.has(index) 
+                                            ? 'bg-accent border-accent scale-110' 
                                             : 'border-border bg-bg-primary'
                                     ]">
-                                        <PhCheck v-if="selectedBlogs.has(index)" :size="14" weight="bold" class="text-white" />
+                                        <PhCheck v-if="selectedFeeds.has(index)" :size="14" weight="bold" class="text-white" />
                                     </div>
                                 </div>
 
-                                <!-- Blog Info -->
+                                <!-- Feed Info -->
                                 <div class="flex-1 min-w-0">
-                                    <div class="flex items-start gap-3 mb-2">
-                                        <img :src="blog.icon_url" class="w-8 h-8 rounded" :alt="blog.name" @error="$event.target.style.display='none'">
+                                    <div class="flex items-start gap-3 mb-3">
+                                        <div class="shrink-0 w-10 h-10 rounded-lg overflow-hidden bg-bg-primary border border-border flex items-center justify-center">
+                                            <img :src="feed.icon_url" class="w-full h-full object-cover" :alt="feed.name" @error="$event.target.style.display='none'">
+                                        </div>
                                         <div class="flex-1 min-w-0">
-                                            <h3 class="font-semibold text-text-primary truncate">{{ blog.name }}</h3>
-                                            <a :href="blog.homepage" 
+                                            <h3 class="font-semibold text-text-primary truncate text-base">{{ feed.name }}</h3>
+                                            <a :href="feed.homepage" 
                                                target="_blank" 
                                                @click.stop
-                                               class="text-xs text-accent hover:text-accent-hover flex items-center gap-1 mt-1 truncate">
+                                               class="text-xs text-accent hover:text-accent-hover flex items-center gap-1 mt-1 hover:underline">
                                                 <PhGlobe :size="14" />
-                                                <span class="truncate">{{ blog.homepage }}</span>
+                                                <span class="truncate">{{ feed.homepage }}</span>
                                             </a>
                                         </div>
                                     </div>
 
                                     <!-- Recent Articles -->
-                                    <div v-if="blog.recent_articles && blog.recent_articles.length > 0" class="mt-3 space-y-1.5">
-                                        <p class="text-xs font-medium text-text-secondary mb-2">{{ store.i18n.t('recentArticles') }}:</p>
-                                        <div v-for="(article, aIndex) in blog.recent_articles" :key="aIndex" 
-                                             class="text-sm text-text-secondary pl-4 truncate border-l-2 border-border">
-                                            {{ article }}
+                                    <div v-if="feed.recent_articles && feed.recent_articles.length > 0" class="mt-3 bg-bg-primary rounded-lg p-3 border border-border">
+                                        <p class="text-xs font-semibold text-text-secondary mb-2 uppercase tracking-wide">{{ store.i18n.t('recentArticles') }}</p>
+                                        <div class="space-y-2">
+                                            <div v-for="(article, aIndex) in feed.recent_articles" :key="aIndex" 
+                                                 class="text-sm text-text-secondary pl-3 truncate border-l-2 border-accent/30 hover:border-accent hover:text-text-primary transition-colors">
+                                                {{ article }}
+                                            </div>
                                         </div>
                                     </div>
 
                                     <!-- RSS Feed URL -->
-                                    <div class="mt-3 flex items-center gap-1 text-xs text-text-tertiary">
-                                        <PhRss :size="12" />
-                                        <span class="truncate">{{ blog.rss_feed }}</span>
+                                    <div class="mt-3 flex items-center gap-1.5 text-xs text-text-tertiary bg-bg-primary rounded px-2 py-1.5 border border-border">
+                                        <PhRss :size="12" class="shrink-0" />
+                                        <span class="truncate font-mono">{{ feed.rss_feed }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -213,21 +217,22 @@ watch(() => props.show, (newShow) => {
                 </div>
 
                 <!-- Empty State -->
-                <div v-else class="text-center py-12">
-                    <p class="text-text-secondary">{{ store.i18n.t('startDiscovery') }}</p>
+                <div v-else class="text-center py-16">
+                    <PhCircleNotch :size="64" class="text-text-tertiary mx-auto mb-4 opacity-30" />
+                    <p class="text-text-secondary text-lg">{{ store.i18n.t('startDiscovery') }}</p>
                 </div>
             </div>
 
             <!-- Footer -->
-            <div class="flex justify-between items-center p-6 border-t border-border">
+            <div class="flex justify-between items-center p-6 border-t border-border bg-bg-secondary/50">
                 <button @click="close" class="btn-secondary">
                     {{ store.i18n.t('cancel') }}
                 </button>
                 <button @click="subscribeSelected" 
                         :disabled="!hasSelection" 
-                        :class="['btn-primary', !hasSelection && 'opacity-50 cursor-not-allowed']">
+                        :class="['btn-primary flex items-center gap-2', !hasSelection && 'opacity-50 cursor-not-allowed']">
                     {{ store.i18n.t('subscribeSelected') }} 
-                    <span v-if="hasSelection">({{ selectedBlogs.size }})</span>
+                    <span v-if="hasSelection" class="bg-white/20 px-2 py-0.5 rounded-full text-sm">({{ selectedFeeds.size }})</span>
                 </button>
             </div>
         </div>
@@ -236,10 +241,10 @@ watch(() => props.show, (newShow) => {
 
 <style scoped>
 .btn-primary {
-    @apply px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent-hover transition-colors font-medium;
+    @apply px-6 py-2.5 bg-accent text-white rounded-lg hover:bg-accent-hover transition-all font-medium shadow-sm hover:shadow-md;
 }
 
 .btn-secondary {
-    @apply px-4 py-2 bg-bg-tertiary text-text-primary rounded-lg hover:opacity-80 transition-colors;
+    @apply px-6 py-2.5 bg-bg-tertiary text-text-primary rounded-lg hover:opacity-80 transition-all font-medium;
 }
 </style>

@@ -6,7 +6,7 @@ import ArticleDetail from './components/ArticleDetail.vue';
 import AddFeedModal from './components/modals/AddFeedModal.vue';
 import EditFeedModal from './components/modals/EditFeedModal.vue';
 import SettingsModal from './components/modals/SettingsModal.vue';
-import DiscoverBlogsModal from './components/modals/DiscoverBlogsModal.vue';
+import DiscoverFeedsModal from './components/modals/DiscoverFeedsModal.vue';
 import ContextMenu from './components/ContextMenu.vue';
 import ConfirmDialog from './components/modals/ConfirmDialog.vue';
 import InputDialog from './components/modals/InputDialog.vue';
@@ -226,7 +226,7 @@ function handleContextMenuAction(action) {
         <AddFeedModal v-if="showAddFeed" @close="showAddFeed = false" @added="onFeedAdded" />
         <EditFeedModal v-if="showEditFeed" :feed="feedToEdit" @close="showEditFeed = false" @updated="onFeedUpdated" />
         <SettingsModal v-if="showSettings" @close="showSettings = false" />
-        <DiscoverBlogsModal v-if="showDiscoverBlogs && feedToDiscover" 
+        <DiscoverFeedsModal v-if="showDiscoverBlogs && feedToDiscover" 
                             :feed="feedToDiscover" 
                             :show="showDiscoverBlogs"
                             @close="showDiscoverBlogs = false" />

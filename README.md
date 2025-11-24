@@ -20,6 +20,8 @@
 
 - 🖥️ **Cross-Platform**: Native desktop app for Windows, macOS, and Linux
 - 🌐 **Auto-Translation**: Translate article titles using Google Translate or DeepL API
+- 🔍 **Smart Feed Discovery**: Automatically discover new feeds from friend links and related sources
+- 🌏 **Full Localization**: Seamless English and Chinese interface with i18n support
 - 📁 **Smart Organization**: Organize feeds into categories that expand by default
 - ⭐ **Favorites & Reading Tracking**: Save articles and track read/unread status
 - 🎨 **Modern UI**: Clean, responsive interface with dark mode support
