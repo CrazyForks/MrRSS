@@ -73,6 +73,14 @@ export const translations = {
         checkingFeeds: 'Checking RSS feeds',
         pleaseWait: 'Please wait, this may take a few minutes',
         discoverAllFeedsDesc: 'Automatically discover new feeds from all your subscriptions that haven\'t been scanned yet',
+        subscribing: 'Subscribing',
+        fetchingHomepage: 'Fetching homepage',
+        analyzingLinks: 'Analyzing discovered links',
+        preparingDiscovery: 'Preparing discovery',
+        loadingFeeds: 'Loading feeds',
+        analyzingFeeds: 'Analyzing feeds',
+        scanningFriendLinks: 'Scanning for friend links',
+        validatingRSS: 'Validating RSS feeds',
         
         // Settings Modal
         settingsTitle: 'Settings',
@@ -299,6 +307,14 @@ export const translations = {
         checkingFeeds: '正在检查 RSS 订阅',
         pleaseWait: '请稍候，这可能需要几分钟时间',
         discoverAllFeedsDesc: '自动从所有尚未扫描的订阅源中发现新的订阅',
+        subscribing: '正在订阅',
+        fetchingHomepage: '正在获取主页',
+        analyzingLinks: '正在分析发现的链接',
+        preparingDiscovery: '正在准备发现',
+        loadingFeeds: '正在加载订阅源',
+        analyzingFeeds: '正在分析订阅源',
+        scanningFriendLinks: '正在扫描友链',
+        validatingRSS: '正在验证 RSS 订阅',
         
         // Settings Modal
         settingsTitle: '设置',

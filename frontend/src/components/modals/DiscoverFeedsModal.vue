@@ -14,6 +14,8 @@ const isDiscovering = ref(false);
 const discoveredFeeds = ref([]);
 const selectedFeeds = ref(new Set());
 const errorMessage = ref('');
+const progressMessage = ref('');
+const isSubscribing = ref(false);
 
 async function startDiscovery() {
     console.log('startDiscovery: Beginning discovery process');
@@ -21,15 +23,34 @@ async function startDiscovery() {
     errorMessage.value = '';
     discoveredFeeds.value = [];
     selectedFeeds.value.clear();
+    progressMessage.value = store.i18n.t('fetchingHomepage');
 
     try {
         console.log('startDiscovery: Sending request to /api/feeds/discover with feed_id:', props.feed.id);
+        
+        // Simulate progress updates (since backend doesn't stream progress)
+        const progressSteps = [
+            { delay: 500, message: store.i18n.t('searchingFriendLinks') },
+            { delay: 2000, message: store.i18n.t('analyzingLinks') },
+            { delay: 3000, message: store.i18n.t('checkingFeeds') },
+        ];
+        
+        let currentStep = 0;
+        const progressInterval = setInterval(() => {
+            if (currentStep < progressSteps.length) {
+                progressMessage.value = progressSteps[currentStep].message;
+                currentStep++;
+            }
+        }, 1500);
+        
         const response = await fetch('/api/feeds/discover', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ feed_id: props.feed.id })
         });
 
+        clearInterval(progressInterval);
+        
         console.log('startDiscovery: Response status:', response.status);
         if (!response.ok) {
             const errorText = await response.text();
@@ -50,6 +71,7 @@ async function startDiscovery() {
     } finally {
         console.log('startDiscovery: Discovery completed, isDiscovering set to false');
         isDiscovering.value = false;
+        progressMessage.value = '';
     }
 }
 
@@ -75,6 +97,7 @@ const allSelected = computed(() => discoveredFeeds.value.length > 0 && selectedF
 async function subscribeSelected() {
     if (!hasSelection.value) return;
 
+    isSubscribing.value = true;
     const subscribePromises = [];
     
     for (const index of selectedFeeds.value) {
@@ -107,6 +130,8 @@ async function subscribeSelected() {
     } catch (error) {
         console.error('Subscription error:', error);
         window.showToast(store.i18n.t('errorSubscribingFeeds'), 'error');
+    } finally {
+        isSubscribing.value = false;
     }
 }
 
@@ -152,7 +177,8 @@ watch(() => props.show, (newShow, oldShow) => {
                 <!-- Loading State -->
                 <div v-if="isDiscovering" class="flex flex-col items-center justify-center py-12">
                     <PhCircleNotch :size="48" class="text-accent animate-spin mb-4" />
-                    <p class="text-text-secondary">{{ store.i18n.t('discovering') }}</p>
+                    <p class="text-text-primary font-medium mb-2">{{ store.i18n.t('discovering') }}</p>
+                    <p v-if="progressMessage" class="text-sm text-text-secondary">{{ progressMessage }}</p>
                 </div>
 
                 <!-- Error State -->
@@ -212,20 +238,22 @@ watch(() => props.show, (newShow, oldShow) => {
                                     </div>
 
                                     <!-- Recent Articles -->
-                                    <div v-if="feed.recent_articles && feed.recent_articles.length > 0" class="mt-3 bg-bg-primary rounded-lg p-3 border border-border">
-                                        <p class="text-xs font-semibold text-text-secondary mb-2 uppercase tracking-wide">{{ store.i18n.t('recentArticles') }}</p>
+                                    <div v-if="feed.recent_articles && feed.recent_articles.length > 0" class="mt-3">
+                                        <p class="text-xs font-semibold text-text-secondary mb-3 uppercase tracking-wide flex items-center gap-1">
+                                            <PhRss :size="12" />
+                                            {{ store.i18n.t('recentArticles') }}
+                                        </p>
                                         <div class="space-y-2">
                                             <div v-for="(article, aIndex) in feed.recent_articles" :key="aIndex" 
-                                                 class="text-sm text-text-secondary pl-3 truncate border-l-2 border-accent/30 hover:border-accent hover:text-text-primary transition-colors">
-                                                {{ article }}
+                                                 class="flex flex-col gap-1 p-2 rounded-lg bg-bg-secondary hover:bg-bg-tertiary transition-colors group">
+                                                <span class="text-sm text-text-primary font-medium line-clamp-2 group-hover:text-accent transition-colors">
+                                                    {{ article.title || article }}
+                                                </span>
+                                                <span v-if="article.date" class="text-xs text-text-tertiary">
+                                                    {{ article.date }}
+                                                </span>
                                             </div>
                                         </div>
-                                    </div>
-
-                                    <!-- RSS Feed URL -->
-                                    <div class="mt-3 flex items-center gap-1.5 text-xs text-text-tertiary bg-bg-primary rounded px-2 py-1.5 border border-border">
-                                        <PhRss :size="12" class="shrink-0" />
-                                        <span class="truncate font-mono">{{ feed.rss_feed }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -242,14 +270,15 @@ watch(() => props.show, (newShow, oldShow) => {
 
             <!-- Footer -->
             <div class="flex justify-between items-center p-6 border-t border-border bg-bg-secondary/50">
-                <button @click="close" class="btn-secondary">
+                <button @click="close" class="btn-secondary" :disabled="isSubscribing">
                     {{ store.i18n.t('cancel') }}
                 </button>
                 <button @click="subscribeSelected" 
-                        :disabled="!hasSelection" 
-                        :class="['btn-primary flex items-center gap-2', !hasSelection && 'opacity-50 cursor-not-allowed']">
-                    {{ store.i18n.t('subscribeSelected') }} 
-                    <span v-if="hasSelection" class="bg-white/20 px-2 py-0.5 rounded-full text-sm">({{ selectedFeeds.size }})</span>
+                        :disabled="!hasSelection || isSubscribing" 
+                        :class="['btn-primary flex items-center gap-2', (!hasSelection || isSubscribing) && 'opacity-50 cursor-not-allowed']">
+                    <PhCircleNotch v-if="isSubscribing" :size="16" class="animate-spin" />
+                    {{ isSubscribing ? store.i18n.t('subscribing') : store.i18n.t('subscribeSelected') }}
+                    <span v-if="hasSelection && !isSubscribing" class="bg-white/20 px-2 py-0.5 rounded-full text-sm">({{ selectedFeeds.size }})</span>
                 </button>
             </div>
         </div>

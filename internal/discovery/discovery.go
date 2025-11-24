@@ -18,11 +18,17 @@ import (
 
 // DiscoveredBlog represents a blog found through friend links
 type DiscoveredBlog struct {
-	Name           string   `json:"name"`
-	Homepage       string   `json:"homepage"`
-	RSSFeed        string   `json:"rss_feed"`
-	IconURL        string   `json:"icon_url"`
-	RecentArticles []string `json:"recent_articles"`
+	Name           string          `json:"name"`
+	Homepage       string          `json:"homepage"`
+	RSSFeed        string          `json:"rss_feed"`
+	IconURL        string          `json:"icon_url"`
+	RecentArticles []RecentArticle `json:"recent_articles"`
+}
+
+// RecentArticle represents a recent article with title and date
+type RecentArticle struct {
+	Title string `json:"title"`
+	Date  string `json:"date"` // ISO 8601 format or relative time
 }
 
 // Service handles blog discovery operations
@@ -313,9 +319,18 @@ func (s *Service) discoverBlogRSS(ctx context.Context, blogURL string) (Discover
 	}
 
 	// Extract recent articles (max 3)
-	var recentArticles []string
+	var recentArticles []RecentArticle
 	for i := 0; i < len(feed.Items) && i < 3; i++ {
-		recentArticles = append(recentArticles, feed.Items[i].Title)
+		item := feed.Items[i]
+		dateStr := ""
+		if item.PublishedParsed != nil {
+			// Format as relative time or date
+			dateStr = item.PublishedParsed.Format("2006-01-02")
+		}
+		recentArticles = append(recentArticles, RecentArticle{
+			Title: item.Title,
+			Date:  dateStr,
+		})
 	}
 
 	// Get favicon
