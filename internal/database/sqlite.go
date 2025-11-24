@@ -84,6 +84,9 @@ func (db *DB) Init() error {
 	// Note: SQLite doesn't support IF NOT EXISTS for ALTER TABLE ADD COLUMN.
 	// Error is ignored - if column exists, the operation fails harmlessly.
 	_, _ = db.Exec(`ALTER TABLE feeds ADD COLUMN link TEXT DEFAULT ''`)
+	
+	// Migration: Add discovery_completed column to feeds table
+	_, _ = db.Exec(`ALTER TABLE feeds ADD COLUMN discovery_completed BOOLEAN DEFAULT 0`)
 	})
 	return err
 }
@@ -174,7 +177,7 @@ func (db *DB) DeleteFeed(id int64) error {
 
 func (db *DB) GetFeeds() ([]models.Feed, error) {
 	db.WaitForReady()
-	rows, err := db.Query("SELECT id, title, url, link, description, category, image_url, last_updated, last_error FROM feeds")
+	rows, err := db.Query("SELECT id, title, url, link, description, category, image_url, last_updated, last_error, COALESCE(discovery_completed, 0) FROM feeds")
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +187,7 @@ func (db *DB) GetFeeds() ([]models.Feed, error) {
 	for rows.Next() {
 		var f models.Feed
 		var link, category, imageURL, lastError sql.NullString
-		if err := rows.Scan(&f.ID, &f.Title, &f.URL, &link, &f.Description, &category, &imageURL, &f.LastUpdated, &lastError); err != nil {
+		if err := rows.Scan(&f.ID, &f.Title, &f.URL, &link, &f.Description, &category, &imageURL, &f.LastUpdated, &lastError, &f.DiscoveryCompleted); err != nil {
 			return nil, err
 		}
 		f.Link = link.String
@@ -199,11 +202,11 @@ func (db *DB) GetFeeds() ([]models.Feed, error) {
 // GetFeedByID retrieves a specific feed by its ID
 func (db *DB) GetFeedByID(id int64) (*models.Feed, error) {
 	db.WaitForReady()
-	row := db.QueryRow("SELECT id, title, url, link, description, category, image_url, last_updated, last_error FROM feeds WHERE id = ?", id)
+	row := db.QueryRow("SELECT id, title, url, link, description, category, image_url, last_updated, last_error, COALESCE(discovery_completed, 0) FROM feeds WHERE id = ?", id)
 	
 	var f models.Feed
 	var link, category, imageURL, lastError sql.NullString
-	if err := row.Scan(&f.ID, &f.Title, &f.URL, &link, &f.Description, &category, &imageURL, &f.LastUpdated, &lastError); err != nil {
+	if err := row.Scan(&f.ID, &f.Title, &f.URL, &link, &f.Description, &category, &imageURL, &f.LastUpdated, &lastError, &f.DiscoveryCompleted); err != nil {
 		return nil, err
 	}
 	f.Link = link.String
@@ -344,6 +347,13 @@ func (db *DB) UpdateFeedLink(id int64, link string) error {
 func (db *DB) UpdateFeedError(id int64, errorMsg string) error {
 	db.WaitForReady()
 	_, err := db.Exec("UPDATE feeds SET last_error = ? WHERE id = ?", errorMsg, id)
+	return err
+}
+
+// MarkFeedDiscovered marks a feed as having completed discovery
+func (db *DB) MarkFeedDiscovered(id int64) error {
+	db.WaitForReady()
+	_, err := db.Exec("UPDATE feeds SET discovery_completed = 1 WHERE id = ?", id)
 	return err
 }
 

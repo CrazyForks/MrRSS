@@ -66,6 +66,7 @@ export const translations = {
         discoveryComplete: 'Discovery complete',
         alreadyDiscovered: 'Already discovered',
         markAsDiscovered: 'Mark as discovered',
+        feeds: 'feeds',
         
         // Settings Modal
         settingsTitle: 'Settings',
@@ -285,6 +286,7 @@ export const translations = {
         discoveryComplete: '发现完成',
         alreadyDiscovered: '已发现',
         markAsDiscovered: '标记为已发现',
+        feeds: '个订阅源',
         
         // Settings Modal
         settingsTitle: '设置',

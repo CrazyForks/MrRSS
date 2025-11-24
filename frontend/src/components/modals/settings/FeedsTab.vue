@@ -3,12 +3,13 @@ import { store } from '../../../store.js';
 import { ref, computed } from 'vue';
 import { 
     PhHardDrives, PhUpload, PhDownload, PhBroom, PhRss, PhPlus, 
-    PhTrash, PhFolder, PhPencil 
+    PhTrash, PhFolder, PhPencil, PhMagnifyingGlass, PhCircleNotch
 } from "@phosphor-icons/vue";
 
 const emit = defineEmits(['import-opml', 'export-opml', 'cleanup-database', 'add-feed', 'edit-feed', 'delete-feed', 'batch-delete', 'batch-move']);
 
 const selectedFeeds = ref([]);
+const isDiscoveringAll = ref(false);
 
 const isAllSelected = computed(() => {
     return store.feeds && store.feeds.length > 0 && selectedFeeds.value.length === store.feeds.length;
@@ -33,6 +34,41 @@ function handleExportOPML() {
 
 function handleCleanupDatabase() {
     emit('cleanup-database');
+}
+
+async function handleDiscoverAll() {
+    isDiscoveringAll.value = true;
+    try {
+        const response = await fetch('/api/feeds/discover-all', {
+            method: 'POST'
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to discover feeds');
+        }
+
+        const result = await response.json();
+        
+        // Refresh feeds to show updated discovery status
+        await store.fetchFeeds();
+        
+        if (result.feeds_found > 0) {
+            window.showToast(
+                store.i18n.t('discoveryComplete') + ': ' + 
+                store.i18n.t('foundFeeds', { count: result.feeds_found }) +
+                ' ' + store.i18n.t('fromFeed') + ' ' + result.discovered_from + ' ' +
+                store.i18n.t('feeds'),
+                'success'
+            );
+        } else {
+            window.showToast(store.i18n.t('noFriendLinksFound'), 'info');
+        }
+    } catch (error) {
+        console.error('Discovery error:', error);
+        window.showToast(store.i18n.t('discoveryFailed'), 'error');
+    } finally {
+        isDiscoveringAll.value = false;
+    }
 }
 
 function handleAddFeed() {
@@ -82,6 +118,14 @@ function getFavicon(url) {
                 <input type="file" ref="opmlInput" class="hidden" @change="handleImportOPML">
                 <button @click="handleExportOPML" class="btn-secondary flex-1 justify-center text-sm sm:text-base">
                     <PhDownload :size="18" class="sm:w-5 sm:h-5" /> {{ store.i18n.t('exportOPML') }}
+                </button>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-2 sm:mb-3">
+                <button @click="handleDiscoverAll" :disabled="isDiscoveringAll" 
+                        :class="['btn-primary flex-1 justify-center text-sm sm:text-base', isDiscoveringAll && 'opacity-50 cursor-not-allowed']">
+                    <PhCircleNotch v-if="isDiscoveringAll" :size="18" class="sm:w-5 sm:h-5 animate-spin" />
+                    <PhMagnifyingGlass v-else :size="18" class="sm:w-5 sm:h-5" />
+                    {{ isDiscoveringAll ? store.i18n.t('discovering') : store.i18n.t('discoverAllFeeds') }}
                 </button>
             </div>
             <div class="flex">

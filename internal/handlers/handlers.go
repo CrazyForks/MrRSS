@@ -1072,6 +1072,86 @@ func (h *Handler) HandleDiscoverBlogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Mark the feed as discovered
+	if err := h.DB.MarkFeedDiscovered(req.FeedID); err != nil {
+		log.Printf("Error marking feed as discovered: %v", err)
+	}
+
 	log.Printf("Discovered %d blogs", len(discovered))
 	json.NewEncoder(w).Encode(discovered)
+}
+
+// HandleDiscoverAllFeeds discovers feeds from all subscriptions that haven't been discovered yet
+func (h *Handler) HandleDiscoverAllFeeds(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Get all feeds
+	feeds, err := h.DB.GetFeeds()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Filter feeds that haven't been discovered yet
+	var feedsToDiscover []models.Feed
+	for _, feed := range feeds {
+		if !feed.DiscoveryCompleted {
+			feedsToDiscover = append(feedsToDiscover, feed)
+		}
+	}
+
+	if len(feedsToDiscover) == 0 {
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"message":         "All feeds have already been discovered",
+			"discovered_from": 0,
+			"feeds_found":     0,
+		})
+		return
+	}
+
+	// Discover feeds with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	allDiscovered := make(map[string][]discovery.DiscoveredBlog)
+	discoveredCount := 0
+
+	log.Printf("Starting batch discovery for %d feeds", len(feedsToDiscover))
+
+	for _, feed := range feedsToDiscover {
+		select {
+		case <-ctx.Done():
+			log.Println("Batch discovery cancelled: timeout")
+			break
+		default:
+		}
+
+		log.Printf("Discovering from feed: %s (%s)", feed.Title, feed.URL)
+		discovered, err := h.DiscoveryService.DiscoverFromFeed(ctx, feed.URL)
+		if err != nil {
+			log.Printf("Error discovering from feed %s: %v", feed.Title, err)
+			continue
+		}
+
+		if len(discovered) > 0 {
+			allDiscovered[feed.Title] = discovered
+			discoveredCount += len(discovered)
+		}
+
+		// Mark the feed as discovered
+		if err := h.DB.MarkFeedDiscovered(feed.ID); err != nil {
+			log.Printf("Error marking feed as discovered: %v", err)
+		}
+	}
+
+	log.Printf("Batch discovery complete: discovered %d feeds from %d sources", discoveredCount, len(feedsToDiscover))
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"discovered_from": len(feedsToDiscover),
+		"feeds_found":     discoveredCount,
+		"feeds":           allDiscovered,
+	})
 }
