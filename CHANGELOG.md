@@ -7,31 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.0] - 2025-11-25
 
+### Added
+
+- Implements automated feed discovery from friend links with intelligent batch scanning, comprehensive deduplication, real-time progress tracking
+
 ### Changed
 
-- **Backend Code Refactoring**: Major restructuring for improved maintainability
-  - Split `handlers.go` (~1580 lines) into logical modules:
-    - `handler.go` - Core Handler struct and constructor
-    - `scheduler.go` - Background scheduler logic
-    - `feed_handlers.go` - Feed-related handlers
-    - `article_handlers.go` - Article-related handlers
-    - `settings_handlers.go` - Settings handlers
-    - `opml_handlers.go` - OPML import/export
-    - `translation_handlers.go` - Translation handlers
-    - `update_handlers.go` - Update check/download/install
-    - `discovery_handlers.go` - Blog discovery handlers
-  - Split `sqlite.go` (~607 lines) into logical modules:
-    - `db.go` - Core DB struct and initialization
-    - `feed_db.go` - Feed database operations
-    - `article_db.go` - Article database operations
-    - `settings_db.go` - Settings database operations
-    - `cleanup_db.go` - Cleanup and maintenance
-  - Split `discovery.go` (~623 lines) into logical modules:
-    - `service.go` - Core Service struct and types
-    - `feed_discovery.go` - Feed discovery logic
-    - `html_parser.go` - HTML parsing and link extraction
-    - `rss_detector.go` - RSS feed detection
-    - `errors.go` - Custom error definitions
+- Major restructuring of backend code for improved maintainability
 
 ## [1.1.8] - 2025-11-24
 
