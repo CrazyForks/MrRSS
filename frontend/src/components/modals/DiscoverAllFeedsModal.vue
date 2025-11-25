@@ -4,7 +4,6 @@ import { store } from '../../store.js';
 import { PhX, PhCheck, PhGlobe, PhRss, PhCircleNotch } from "@phosphor-icons/vue";
 
 const props = defineProps({
-    feed: { type: Object, required: true },
     show: { type: Boolean, required: true }
 });
 
@@ -29,12 +28,12 @@ function getHostname(url) {
 }
 
 async function startDiscovery() {
-    console.log('startDiscovery: Beginning discovery process with polling');
+    console.log('DiscoverAllFeedsModal: Beginning batch discovery process');
     isDiscovering.value = true;
     errorMessage.value = '';
     discoveredFeeds.value = [];
     selectedFeeds.value.clear();
-    progressMessage.value = store.i18n.t('fetchingHomepage');
+    progressMessage.value = store.i18n.t('preparingDiscovery');
     progressDetail.value = '';
     progressCounts.value = { current: 0, total: 0, found: 0 };
 
@@ -45,69 +44,76 @@ async function startDiscovery() {
     }
 
     try {
-        // Validate feed ID
-        if (!props.feed?.id) {
-            throw new Error('Invalid feed ID');
-        }
-
         // Clear any previous discovery state
-        await fetch('/api/feeds/discover/clear', { method: 'POST' });
+        await fetch('/api/feeds/discover-all/clear', { method: 'POST' });
 
-        // Start discovery in background
-        const startResponse = await fetch('/api/feeds/discover/start', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ feed_id: props.feed.id })
+        // Start batch discovery in background
+        const startResponse = await fetch('/api/feeds/discover-all/start', {
+            method: 'POST'
         });
 
         if (!startResponse.ok) {
             const errorText = await startResponse.text();
-            throw new Error(errorText || 'Failed to start discovery');
+            throw new Error(errorText || 'Failed to start batch discovery');
         }
+
+        const startResult = await startResponse.json();
+        
+        // Check if already complete (all feeds discovered)
+        if (startResult.status === 'complete') {
+            errorMessage.value = startResult.message || store.i18n.t('noFriendLinksFound');
+            isDiscovering.value = false;
+            return;
+        }
+
+        progressCounts.value.total = startResult.total || 0;
 
         // Start polling for progress
         pollInterval = setInterval(async () => {
             try {
-                const progressResponse = await fetch('/api/feeds/discover/progress');
+                const progressResponse = await fetch('/api/feeds/discover-all/progress');
                 if (!progressResponse.ok) {
                     throw new Error('Failed to get progress');
                 }
 
                 const state = await progressResponse.json();
-                console.log('Progress state:', state);
+                console.log('Batch progress state:', state);
 
                 // Update progress display
                 if (state.progress) {
                     const progress = state.progress;
                     switch (progress.stage) {
+                        case 'starting':
+                            progressMessage.value = store.i18n.t('preparingDiscovery');
+                            progressDetail.value = '';
+                            break;
+                        case 'processing_feed':
+                            progressMessage.value = store.i18n.t('processingFeed', { current: progress.current || 0, total: progress.total || 0 });
+                            progressDetail.value = progress.feed_name || '';
+                            break;
                         case 'fetching_homepage':
                             progressMessage.value = store.i18n.t('fetchingHomepage');
-                            progressDetail.value = progress.detail ? getHostname(progress.detail) : '';
+                            progressDetail.value = progress.feed_name ? `${progress.feed_name}` : '';
                             break;
                         case 'finding_friend_links':
                             progressMessage.value = store.i18n.t('searchingFriendLinks');
-                            progressDetail.value = progress.detail ? getHostname(progress.detail) : '';
+                            progressDetail.value = progress.feed_name || '';
                             break;
                         case 'fetching_friend_page':
                             progressMessage.value = store.i18n.t('fetchingFriendPage');
-                            progressDetail.value = progress.detail ? getHostname(progress.detail) : '';
-                            break;
-                        case 'found_links':
-                            progressMessage.value = store.i18n.t('foundPotentialLinks', { count: progress.total });
-                            progressDetail.value = '';
-                            progressCounts.value.total = progress.total;
+                            progressDetail.value = progress.feed_name || '';
                             break;
                         case 'checking_rss':
                             progressMessage.value = store.i18n.t('checkingRssFeed');
-                            progressDetail.value = progress.detail ? getHostname(progress.detail) : '';
-                            progressCounts.value.current = progress.current || 0;
-                            progressCounts.value.total = progress.total || 0;
-                            progressCounts.value.found = progress.found_count || 0;
+                            progressDetail.value = progress.feed_name + (progress.detail ? ' - ' + getHostname(progress.detail) : '');
                             break;
                         default:
                             progressMessage.value = progress.message || store.i18n.t('discovering');
-                            progressDetail.value = progress.detail ? getHostname(progress.detail) : '';
+                            progressDetail.value = progress.feed_name || (progress.detail ? getHostname(progress.detail) : '');
                     }
+                    progressCounts.value.current = progress.current || 0;
+                    progressCounts.value.total = progress.total || 0;
+                    progressCounts.value.found = progress.found_count || 0;
                 }
 
                 // Check if complete
@@ -128,8 +134,11 @@ async function startDiscovery() {
                     progressMessage.value = '';
                     progressDetail.value = '';
 
+                    // Refresh feeds to show updated discovery status
+                    await store.fetchFeeds();
+
                     // Clear the discovery state
-                    await fetch('/api/feeds/discover/clear', { method: 'POST' });
+                    await fetch('/api/feeds/discover-all/clear', { method: 'POST' });
                 }
             } catch (pollError) {
                 console.error('Polling error:', pollError);
@@ -182,7 +191,7 @@ async function subscribeSelected() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 url: feed.rss_feed,
-                category: props.feed.category || '',
+                category: '',
                 title: feed.name
             })
         });
@@ -217,24 +226,24 @@ function close() {
         pollInterval = null;
     }
     // Clear discovery state on server
-    fetch('/api/feeds/discover/clear', { method: 'POST' }).catch(() => {});
+    fetch('/api/feeds/discover-all/clear', { method: 'POST' }).catch(() => {});
     emit('close');
 }
 
-// Auto-start discovery when component is mounted
+// Auto-start discovery when component is mounted and shown
 onMounted(() => {
-    console.log('DiscoverFeedsModal: Component mounted, show =', props.show);
+    console.log('DiscoverAllFeedsModal: Component mounted, show =', props.show);
     if (props.show) {
-        console.log('DiscoverFeedsModal: Auto-starting discovery on mount');
+        console.log('DiscoverAllFeedsModal: Auto-starting discovery on mount');
         startDiscovery();
     }
 });
 
 // Watch for modal opening and trigger discovery (for when modal is reused)
 watch(() => props.show, (newShow, oldShow) => {
-    console.log('DiscoverFeedsModal: show changed from', oldShow, 'to', newShow);
+    console.log('DiscoverAllFeedsModal: show changed from', oldShow, 'to', newShow);
     if (newShow && !oldShow) {
-        console.log('DiscoverFeedsModal: Starting discovery from watch');
+        console.log('DiscoverAllFeedsModal: Starting discovery from watch');
         startDiscovery();
     }
 });
@@ -246,7 +255,7 @@ onUnmounted(() => {
         pollInterval = null;
     }
     // Clear discovery state on server
-    fetch('/api/feeds/discover/clear', { method: 'POST' }).catch(() => {});
+    fetch('/api/feeds/discover-all/clear', { method: 'POST' }).catch(() => {});
 });
 </script>
 
@@ -256,8 +265,8 @@ onUnmounted(() => {
             <!-- Header -->
             <div class="flex justify-between items-center p-6 border-b border-border bg-gradient-to-r from-accent/5 to-transparent">
                 <div>
-                    <h2 class="text-xl font-bold text-text-primary">{{ store.i18n.t('discoverFeeds') }}</h2>
-                    <p class="text-sm text-text-secondary mt-1">{{ store.i18n.t('fromFeed') }}: {{ feed.title }}</p>
+                    <h2 class="text-xl font-bold text-text-primary">{{ store.i18n.t('discoverAllFeeds') }}</h2>
+                    <p class="text-sm text-text-secondary mt-1">{{ store.i18n.t('discoverAllFeedsDesc') }}</p>
                 </div>
                 <button @click="close" class="p-2 hover:bg-bg-tertiary rounded-lg transition-colors">
                     <PhX :size="24" class="text-text-secondary" />
@@ -272,9 +281,14 @@ onUnmounted(() => {
                     <p class="text-text-primary font-medium mb-2">{{ store.i18n.t('discovering') }}</p>
                     <p v-if="progressMessage" class="text-sm text-text-secondary">{{ progressMessage }}</p>
                     <p v-if="progressDetail" class="text-xs text-text-tertiary mt-1 font-mono">{{ progressDetail }}</p>
-                    <div v-if="progressCounts.total > 0" class="mt-3 text-xs text-text-tertiary">
-                        <span>{{ progressCounts.current }}/{{ progressCounts.total }}</span>
-                        <span v-if="progressCounts.found > 0" class="ml-2">• {{ store.i18n.t('foundSoFar', { count: progressCounts.found }) }}</span>
+                    <div v-if="progressCounts.total > 0" class="mt-4 w-full max-w-md">
+                        <div class="w-full bg-bg-tertiary rounded-full h-2 overflow-hidden mb-2">
+                            <div class="bg-accent h-full transition-all duration-300" :style="{ width: (progressCounts.current / progressCounts.total * 100) + '%' }"></div>
+                        </div>
+                        <div class="flex justify-between text-xs text-text-tertiary">
+                            <span>{{ progressCounts.current }}/{{ progressCounts.total }}</span>
+                            <span v-if="progressCounts.found > 0">{{ store.i18n.t('foundSoFar', { count: progressCounts.found }) }}</span>
+                        </div>
                     </div>
                 </div>
 
