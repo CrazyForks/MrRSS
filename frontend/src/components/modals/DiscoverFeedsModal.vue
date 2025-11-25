@@ -45,6 +45,16 @@ async function startDiscovery() {
     }
 
     try {
+        // Check if EventSource is supported
+        if (typeof EventSource === 'undefined') {
+            throw new Error('EventSource not supported by this browser');
+        }
+
+        // Validate feed ID before creating EventSource
+        if (!props.feed?.id) {
+            throw new Error('Invalid feed ID');
+        }
+
         // Use SSE endpoint for real-time progress
         eventSource = new EventSource(`/api/feeds/discover-sse?feed_id=${props.feed.id}`);
 

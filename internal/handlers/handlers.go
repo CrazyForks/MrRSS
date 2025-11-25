@@ -28,6 +28,14 @@ import (
 	"MrRSS/internal/version"
 )
 
+// Discovery timeout constants
+const (
+	// SingleFeedDiscoveryTimeout is the timeout for discovering feeds from a single source
+	SingleFeedDiscoveryTimeout = 90 * time.Second
+	// BatchDiscoveryTimeout is the timeout for discovering feeds from all sources
+	BatchDiscoveryTimeout = 5 * time.Minute
+)
+
 type Handler struct {
 	DB               *database.DB
 	Fetcher          *feed.Fetcher
@@ -1144,7 +1152,7 @@ func (h *Handler) HandleDiscoverBlogsSSE(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Discover blogs with timeout and progress updates
-	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), SingleFeedDiscoveryTimeout)
 	defer cancel()
 
 	log.Printf("Starting SSE blog discovery for feed: %s (%s)", targetFeed.Title, targetFeed.URL)
@@ -1225,7 +1233,7 @@ func (h *Handler) HandleDiscoverAllFeeds(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Discover feeds with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), BatchDiscoveryTimeout)
 	defer cancel()
 
 	allDiscovered := make(map[string][]discovery.DiscoveredBlog)
@@ -1334,7 +1342,7 @@ func (h *Handler) HandleDiscoverAllFeedsSSE(w http.ResponseWriter, r *http.Reque
 	})
 
 	// Discover feeds with timeout
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(r.Context(), BatchDiscoveryTimeout)
 	defer cancel()
 
 	allDiscovered := make(map[string][]discovery.DiscoveredBlog)

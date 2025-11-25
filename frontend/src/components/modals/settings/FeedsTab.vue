@@ -57,6 +57,11 @@ async function handleDiscoverAll() {
     }
 
     try {
+        // Check if EventSource is supported
+        if (typeof EventSource === 'undefined') {
+            throw new Error('EventSource not supported by this browser');
+        }
+
         // Use SSE endpoint for real-time progress
         eventSource = new EventSource('/api/feeds/discover-all-sse');
 

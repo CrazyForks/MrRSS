@@ -16,6 +16,16 @@ import (
 	"github.com/mmcdole/gofeed"
 )
 
+// Discovery configuration constants
+const (
+	// MaxConcurrentRSSChecks limits the number of concurrent RSS feed checks
+	MaxConcurrentRSSChecks = 15
+	// MaxConcurrentPathChecks limits the number of concurrent common path checks
+	MaxConcurrentPathChecks = 5
+	// HTTPClientTimeout is the timeout for HTTP requests
+	HTTPClientTimeout = 15 * time.Second
+)
+
 // ProgressCallback is called with progress updates during discovery
 type ProgressCallback func(progress Progress)
 
@@ -55,7 +65,7 @@ type Service struct {
 func NewService() *Service {
 	return &Service{
 		client: &http.Client{
-			Timeout: 15 * time.Second,
+			Timeout: HTTPClientTimeout,
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				if len(via) >= 5 {
 					return fmt.Errorf("too many redirects")
@@ -348,7 +358,7 @@ func (s *Service) discoverRSSFeeds(ctx context.Context, blogURLs []string) []Dis
 func (s *Service) discoverRSSFeedsWithProgress(ctx context.Context, blogURLs []string, progressCb ProgressCallback) []DiscoveredBlog {
 	var wg sync.WaitGroup
 	results := make(chan DiscoveredBlog, len(blogURLs))
-	sem := make(chan struct{}, 15) // Increased concurrency from 10 to 15
+	sem := make(chan struct{}, MaxConcurrentRSSChecks)
 
 	// Track progress
 	var progressMu sync.Mutex
@@ -512,7 +522,7 @@ func (s *Service) findRSSFeed(ctx context.Context, blogURL string) (string, erro
 	resultCh := make(chan feedResult, len(commonPaths))
 
 	var wg sync.WaitGroup
-	semaphore := make(chan struct{}, 5) // Limit concurrent checks
+	semaphore := make(chan struct{}, MaxConcurrentPathChecks)
 
 	for _, path := range commonPaths {
 		feedURL := baseURL + path
