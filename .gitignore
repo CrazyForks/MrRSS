@@ -48,6 +48,7 @@ dist/
 node_modules/
 dist/
 package.json.md5
+*.syso
 
 # log
 *.log

@@ -5,6 +5,16 @@ All notable changes to MrRSS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-11-25
+
+### Added
+
+- Implements automated feed discovery from friend links with intelligent batch scanning, comprehensive deduplication, real-time progress tracking
+
+### Changed
+
+- Major restructuring of backend code for improved maintainability
+
 ## [1.1.8] - 2025-11-24
 
 ### Added
