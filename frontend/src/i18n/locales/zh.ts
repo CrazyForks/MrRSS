@@ -346,6 +346,15 @@ const zh: TranslationMessages = {
   openScriptsFolder: '打开脚本文件夹',
   scriptHelp: '脚本应输出有效的 RSS/Atom XML。支持：Python、Shell、PowerShell、Node.js、Ruby。',
   scriptsFolderOpened: '脚本文件夹已打开',
+  scriptDocumentation: '文档',
+
+  // Feed Management
+  refreshFeed: '刷新订阅源',
+  feedRefreshStarted: '订阅源刷新已开始',
+  sortBy: '排序',
+  sortByName: '名称',
+  sortByDate: '添加时间',
+  sortByCategory: '分类',
 };
 
 export default zh;

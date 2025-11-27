@@ -343,6 +343,15 @@ export interface TranslationMessages {
   openScriptsFolder: string;
   scriptHelp: string;
   scriptsFolderOpened: string;
+  scriptDocumentation: string;
+
+  // Feed Management
+  refreshFeed: string;
+  feedRefreshStarted: string;
+  sortBy: string;
+  sortByName: string;
+  sortByDate: string;
+  sortByCategory: string;
 }
 
 export type SupportedLocale = 'en' | 'zh';

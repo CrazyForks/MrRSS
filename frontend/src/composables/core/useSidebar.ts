@@ -110,6 +110,14 @@ export function useSidebar() {
     if (action === 'markAllRead') {
       await store.markAllAsRead(feed.id);
       window.showToast(t('markedAllAsRead'), 'success');
+    } else if (action === 'refreshFeed') {
+      await fetch(`/api/feeds/refresh?id=${feed.id}`, { method: 'POST' });
+      window.showToast(t('feedRefreshStarted'), 'success');
+      // Refresh articles after a short delay to show new content
+      setTimeout(() => {
+        store.fetchArticles();
+        store.fetchUnreadCounts();
+      }, 2000);
     } else if (action === 'delete') {
       const confirmed = await window.showConfirm({
         title: t('unsubscribeTitle'),
@@ -142,6 +150,7 @@ export function useSidebar() {
           x: e.clientX,
           y: e.clientY,
           items: [
+            { label: t('refreshFeed'), action: 'refreshFeed', icon: 'PhArrowsClockwise' },
             { label: t('markAllAsReadFeed'), action: 'markAllRead', icon: 'ph-check-circle' },
             { separator: true },
             { label: t('openWebsite'), action: 'openWebsite', icon: 'ph-globe' },

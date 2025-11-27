@@ -14,6 +14,7 @@ import {
   PhPencil,
   PhMagnifyingGlass,
   PhCode,
+  PhSortAscending,
 } from '@phosphor-icons/vue';
 import type { Feed } from '@/types/models';
 
@@ -35,9 +36,48 @@ const emit = defineEmits<{
 const selectedFeeds: Ref<number[]> = ref([]);
 const opmlInput: Ref<HTMLInputElement | null> = ref(null);
 
+// Sorting state
+type SortField = 'name' | 'date' | 'category';
+type SortDirection = 'asc' | 'desc';
+const sortField = ref<SortField>('name');
+const sortDirection = ref<SortDirection>('asc');
+
+const sortedFeeds = computed(() => {
+  if (!store.feeds) return [];
+  const feeds = [...store.feeds];
+
+  feeds.sort((a, b) => {
+    let comparison = 0;
+
+    if (sortField.value === 'name') {
+      comparison = a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
+    } else if (sortField.value === 'date') {
+      // Use feed ID as proxy for add time (higher ID = newer)
+      comparison = a.id - b.id;
+    } else if (sortField.value === 'category') {
+      const catA = a.category || '';
+      const catB = b.category || '';
+      comparison = catA.localeCompare(catB, undefined, { sensitivity: 'base' });
+    }
+
+    return sortDirection.value === 'asc' ? comparison : -comparison;
+  });
+
+  return feeds;
+});
+
 const isAllSelected = computed(() => {
   return store.feeds && store.feeds.length > 0 && selectedFeeds.value.length === store.feeds.length;
 });
+
+function toggleSort(field: SortField) {
+  if (sortField.value === field) {
+    sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortField.value = field;
+    sortDirection.value = 'asc';
+  }
+}
 
 function clickFileInput() {
   opmlInput.value?.click();
@@ -210,11 +250,53 @@ async function openScriptsFolder() {
         </label>
       </div>
 
+      <!-- Sort Controls -->
+      <div class="flex items-center gap-2 mb-2 text-xs">
+        <PhSortAscending :size="14" class="text-text-secondary" />
+        <span class="text-text-secondary">{{ t('sortBy') }}:</span>
+        <button
+          @click="toggleSort('name')"
+          :class="[
+            'px-2 py-0.5 rounded transition-colors',
+            sortField === 'name'
+              ? 'bg-accent text-white'
+              : 'bg-bg-tertiary text-text-primary hover:bg-bg-secondary',
+          ]"
+        >
+          {{ t('sortByName') }}
+          <span v-if="sortField === 'name'">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+        </button>
+        <button
+          @click="toggleSort('date')"
+          :class="[
+            'px-2 py-0.5 rounded transition-colors',
+            sortField === 'date'
+              ? 'bg-accent text-white'
+              : 'bg-bg-tertiary text-text-primary hover:bg-bg-secondary',
+          ]"
+        >
+          {{ t('sortByDate') }}
+          <span v-if="sortField === 'date'">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+        </button>
+        <button
+          @click="toggleSort('category')"
+          :class="[
+            'px-2 py-0.5 rounded transition-colors',
+            sortField === 'category'
+              ? 'bg-accent text-white'
+              : 'bg-bg-tertiary text-text-primary hover:bg-bg-secondary',
+          ]"
+        >
+          {{ t('sortByCategory') }}
+          <span v-if="sortField === 'category'">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+        </button>
+      </div>
+
       <div
         class="border border-border rounded-lg bg-bg-secondary overflow-y-auto max-h-60 sm:max-h-96"
       >
         <div
-          v-for="feed in store.feeds"
+          v-for="feed in sortedFeeds"
           :key="feed.id"
           class="flex items-center p-1.5 sm:p-2 border-b border-border last:border-0 bg-bg-primary hover:bg-bg-secondary gap-1.5 sm:gap-2"
         >

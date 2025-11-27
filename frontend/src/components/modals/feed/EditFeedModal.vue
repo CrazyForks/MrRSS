@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { PhCode, PhRss } from '@phosphor-icons/vue';
+import { PhCode, PhRss, PhBookOpen } from '@phosphor-icons/vue';
 import type { Feed } from '@/types/models';
 
 const { t } = useI18n();
@@ -204,17 +204,25 @@ async function openScriptsFolder() {
           >
             <p class="mb-2">{{ t('noScriptsFound') }}</p>
           </div>
-          <button
-            type="button"
-            @click="openScriptsFolder"
-            class="text-sm text-accent hover:underline flex items-center gap-1 mt-2"
-          >
-            <PhCode :size="14" />
-            {{ t('openScriptsFolder') }}
-          </button>
-          <p class="text-xs text-text-secondary mt-2">
-            {{ t('scriptHelp') }}
-          </p>
+          <div class="flex items-center gap-3 mt-2">
+            <button
+              type="button"
+              @click="openScriptsFolder"
+              class="text-sm text-accent hover:underline flex items-center gap-1"
+            >
+              <PhCode :size="14" />
+              {{ t('openScriptsFolder') }}
+            </button>
+            <a
+              href="https://github.com/WCY-dt/MrRSS/blob/main/docs/CUSTOM_SCRIPTS.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-sm text-accent hover:underline flex items-center gap-1"
+            >
+              <PhBookOpen :size="14" />
+              {{ t('scriptDocumentation') }}
+            </a>
+          </div>
         </div>
 
         <div class="mb-4">

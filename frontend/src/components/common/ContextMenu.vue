@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, type Ref, type Component } from 'vue';
+import { ref, onMounted, onUnmounted, computed, nextTick, type Ref, type Component } from 'vue';
 import * as PhosphorIcons from '@phosphor-icons/vue';
 
 export interface ContextMenuItem {
@@ -19,7 +19,7 @@ interface Props {
   y: number;
 }
 
-defineProps<Props>();
+const props = defineProps<Props>();
 
 const emit = defineEmits<{
   close: [];
@@ -27,6 +27,7 @@ const emit = defineEmits<{
 }>();
 
 const menuRef: Ref<HTMLDivElement | null> = ref(null);
+const adjustedPosition = ref({ top: 0, left: 0 });
 
 // Map old icon names to new component names
 const iconMap: Record<string, string> = {
@@ -42,6 +43,7 @@ const iconMap: Record<string, string> = {
   'ph-eye-slash': 'PhEyeSlash',
   'ph-arrow-square-out': 'PhArrowSquareOut',
   PhMagnifyingGlass: 'PhMagnifyingGlass',
+  PhArrowsClockwise: 'PhArrowsClockwise',
 };
 
 // Get icon component from icon string
@@ -57,7 +59,41 @@ function handleClickOutside(event: MouseEvent) {
   }
 }
 
+// Adjust position to keep menu within viewport
+function adjustMenuPosition() {
+  nextTick(() => {
+    if (!menuRef.value) {
+      adjustedPosition.value = { top: props.y, left: props.x };
+      return;
+    }
+
+    const menuRect = menuRef.value.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    let newTop = props.y;
+    let newLeft = props.x;
+
+    // Check if menu goes beyond right edge
+    if (props.x + menuRect.width > viewportWidth - 10) {
+      newLeft = props.x - menuRect.width;
+      if (newLeft < 10) newLeft = 10;
+    }
+
+    // Check if menu goes beyond bottom edge
+    if (props.y + menuRect.height > viewportHeight - 10) {
+      newTop = props.y - menuRect.height;
+      if (newTop < 10) newTop = 10;
+    }
+
+    adjustedPosition.value = { top: newTop, left: newLeft };
+  });
+}
+
 onMounted(() => {
+  // Adjust position immediately
+  adjustMenuPosition();
+
   // Use setTimeout to avoid catching the event that opened the menu
   setTimeout(() => {
     document.addEventListener('click', handleClickOutside);
@@ -77,13 +113,18 @@ function handleAction(item: ContextMenuItem) {
   }
   emit('close');
 }
+
+const menuStyle = computed(() => ({
+  top: `${adjustedPosition.value.top}px`,
+  left: `${adjustedPosition.value.left}px`,
+}));
 </script>
 
 <template>
   <div
     ref="menuRef"
     class="fixed z-50 bg-bg-primary border border-border rounded-lg shadow-xl py-1 min-w-[180px] animate-fade-in"
-    :style="{ top: `${y}px`, left: `${x}px` }"
+    :style="menuStyle"
   >
     <template v-for="(item, index) in items" :key="index">
       <div v-if="item.separator" class="h-px bg-border my-1"></div>

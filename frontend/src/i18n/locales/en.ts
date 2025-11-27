@@ -348,6 +348,15 @@ const en: TranslationMessages = {
   scriptHelp:
     'Scripts should output valid RSS/Atom XML. Supported: Python, Shell, PowerShell, Node.js, Ruby.',
   scriptsFolderOpened: 'Scripts folder opened',
+  scriptDocumentation: 'Documentation',
+
+  // Feed Management
+  refreshFeed: 'Refresh Feed',
+  feedRefreshStarted: 'Feed refresh started',
+  sortBy: 'Sort by',
+  sortByName: 'Name',
+  sortByDate: 'Date Added',
+  sortByCategory: 'Category',
 };
 
 export default en;
