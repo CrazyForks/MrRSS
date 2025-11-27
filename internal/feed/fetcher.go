@@ -5,9 +5,11 @@ import (
 	"MrRSS/internal/models"
 	"MrRSS/internal/rules"
 	"MrRSS/internal/translation"
+	"MrRSS/internal/utils"
 	"context"
 	"log"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -21,11 +23,12 @@ type FeedParser interface {
 }
 
 type Fetcher struct {
-	db         *database.DB
-	fp         FeedParser
-	translator translation.Translator
-	progress   Progress
-	mu         sync.Mutex
+	db             *database.DB
+	fp             FeedParser
+	translator     translation.Translator
+	scriptExecutor *ScriptExecutor
+	progress       Progress
+	mu             sync.Mutex
 }
 
 type Progress struct {
@@ -35,10 +38,18 @@ type Progress struct {
 }
 
 func NewFetcher(db *database.DB, translator translation.Translator) *Fetcher {
+	// Initialize script executor with scripts directory
+	scriptsDir, err := utils.GetScriptsDir()
+	var executor *ScriptExecutor
+	if err == nil {
+		executor = NewScriptExecutor(scriptsDir)
+	}
+
 	return &Fetcher{
-		db:         db,
-		fp:         gofeed.NewParser(),
-		translator: translator,
+		db:             db,
+		fp:             gofeed.NewParser(),
+		translator:     translator,
+		scriptExecutor: executor,
 	}
 }
 
@@ -127,12 +138,31 @@ Finish:
 }
 
 func (f *Fetcher) FetchFeed(ctx context.Context, feed models.Feed) {
-	parsedFeed, err := f.fp.ParseURLWithContext(feed.URL, ctx)
-	if err != nil {
-		log.Printf("Error parsing feed %s: %v", feed.URL, err)
-		// Update feed with error status
-		f.db.UpdateFeedError(feed.ID, err.Error())
-		return
+	var parsedFeed *gofeed.Feed
+	var err error
+
+	// Check if this feed uses a custom script
+	if feed.ScriptPath != "" {
+		// Execute the custom script to fetch feed
+		if f.scriptExecutor == nil {
+			log.Printf("Script executor not initialized for feed %s", feed.Title)
+			f.db.UpdateFeedError(feed.ID, "Script executor not initialized")
+			return
+		}
+		parsedFeed, err = f.scriptExecutor.ExecuteScript(ctx, feed.ScriptPath)
+		if err != nil {
+			log.Printf("Error executing script for feed %s: %v", feed.Title, err)
+			f.db.UpdateFeedError(feed.ID, err.Error())
+			return
+		}
+	} else {
+		// Use traditional URL-based fetching
+		parsedFeed, err = f.fp.ParseURLWithContext(feed.URL, ctx)
+		if err != nil {
+			log.Printf("Error parsing feed %s: %v", feed.URL, err)
+			f.db.UpdateFeedError(feed.ID, err.Error())
+			return
+		}
 	}
 
 	// Clear any previous error on successful fetch
@@ -195,9 +225,15 @@ func (f *Fetcher) FetchFeed(ctx context.Context, feed models.Feed) {
 			content = item.Description
 		}
 
+		// Generate title if missing
+		title := item.Title
+		if title == "" {
+			title = generateTitleFromContent(content)
+		}
+
 		article := &models.Article{
 			FeedID:          feed.ID,
-			Title:           item.Title,
+			Title:           title,
 			URL:             item.Link,
 			ImageURL:        imageURL,
 			Content:         content,
@@ -262,6 +298,55 @@ func (f *Fetcher) AddSubscription(url string, category string, customTitle strin
 	return f.db.AddFeed(feed)
 }
 
+// AddScriptSubscription adds a new feed subscription that uses a custom script
+func (f *Fetcher) AddScriptSubscription(scriptPath string, category string, customTitle string) error {
+	// Validate script path
+	if f.scriptExecutor == nil {
+		return &ScriptError{Message: "script executor not initialized"}
+	}
+
+	// Execute script to get initial feed info
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	parsedFeed, err := f.scriptExecutor.ExecuteScript(ctx, scriptPath)
+	if err != nil {
+		return err
+	}
+
+	title := parsedFeed.Title
+	if customTitle != "" {
+		title = customTitle
+	}
+
+	// Use a placeholder URL for script-based feeds
+	url := "script://" + scriptPath
+
+	feed := &models.Feed{
+		Title:       title,
+		URL:         url,
+		Link:        parsedFeed.Link,
+		Description: parsedFeed.Description,
+		Category:    category,
+		ScriptPath:  scriptPath,
+	}
+
+	if parsedFeed.Image != nil {
+		feed.ImageURL = parsedFeed.Image.URL
+	}
+
+	return f.db.AddFeed(feed)
+}
+
+// ScriptError represents an error related to script execution
+type ScriptError struct {
+	Message string
+}
+
+func (e *ScriptError) Error() string {
+	return e.Message
+}
+
 func (f *Fetcher) ImportSubscription(title, url, category string) error {
 	feed := &models.Feed{
 		Title:    title,
@@ -275,4 +360,30 @@ func (f *Fetcher) ImportSubscription(title, url, category string) error {
 // ParseFeed parses an RSS feed from a URL and returns the parsed feed
 func (f *Fetcher) ParseFeed(ctx context.Context, url string) (*gofeed.Feed, error) {
 	return f.fp.ParseURLWithContext(url, ctx)
+}
+
+// generateTitleFromContent generates a title from content when title is missing
+func generateTitleFromContent(content string) string {
+	if content == "" {
+		return "Untitled Article"
+	}
+
+	// Remove HTML tags
+	htmlTagRegex := regexp.MustCompile(`<[^>]+>`)
+	plainText := htmlTagRegex.ReplaceAllString(content, "")
+
+	// Trim whitespace
+	plainText = strings.TrimSpace(plainText)
+
+	// Limit to 100 characters
+	if len(plainText) > 100 {
+		plainText = plainText[:100] + "..."
+	}
+
+	// If still empty after cleaning, use default
+	if plainText == "" {
+		return "Untitled Article"
+	}
+
+	return plainText
 }

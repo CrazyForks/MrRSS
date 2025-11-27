@@ -9,6 +9,7 @@ const en: TranslationMessages = {
   unread: 'Unread',
   favorites: 'Favorites',
   uncategorized: 'Uncategorized',
+  searchFeeds: 'Search feeds...',
   addFeed: 'Add Feed',
   settings: 'Settings',
 
@@ -158,8 +159,6 @@ const en: TranslationMessages = {
   importOPML: 'Import OPML',
   exportOPML: 'Export OPML',
   cleanDatabase: 'Clean Database',
-  cleanDatabaseDesc:
-    'Removes all articles except read and favorited ones. Old articles are also automatically cleaned if "Auto Cleanup" is enabled in General settings.',
   manageFeeds: 'Manage Feeds',
   deleteSelected: 'Delete Selected',
   moveSelected: 'Move Selected',
@@ -247,6 +246,7 @@ const en: TranslationMessages = {
   filterArticles: 'Filter Articles',
   addCondition: 'Add Condition',
   clearFilters: 'Clear Filters',
+  clear: 'Clear',
   applyFilters: 'Apply Filters',
   noFiltersApplied: 'No filters applied',
   feedName: 'Feed Name',
@@ -270,6 +270,8 @@ const en: TranslationMessages = {
   filterOperator: 'Operator',
   filterValue: 'Value',
   removeCondition: 'Remove',
+  selectItems: 'Select items',
+  itemsSelected: '{count} items selected',
   filtersActive: '{count} filter(s) active',
   andNMore: 'and {count} more',
 
@@ -337,6 +339,27 @@ const en: TranslationMessages = {
   applyingRule: 'Applying...',
   noActionsSelected: 'Please select at least one action',
   thenDo: 'then',
+
+  // Custom Script Support
+  feedSource: 'Feed Source',
+  customScript: 'Custom Script',
+  selectScript: 'Select Script',
+  selectScriptPlaceholder: 'Select a script...',
+  noScriptsFound: 'No scripts found in the scripts folder.',
+  openScriptsFolder: 'Open Scripts Folder',
+  scriptHelp:
+    'Scripts should output valid RSS/Atom XML. Supported: Python, Shell, PowerShell, Node.js, Ruby.',
+  scriptsFolderOpened: 'Scripts folder opened',
+  scriptDocumentation: 'View Documentation',
+  useCustomScript: 'Use custom script',
+  useRssUrl: 'Use RSS URL',
+
+  // Feed Management
+  refreshFeed: 'Refresh Feed',
+  feedRefreshStarted: 'Feed refresh started',
+  sortByName: 'Name',
+  sortByDate: 'Date Added',
+  sortByCategory: 'Category',
 };
 
 export default en;

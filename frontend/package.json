@@ -1,7 +1,7 @@
 {
   "name": "mrrss-frontend",
   "private": true,
-  "version": "1.2.4",
+  "version": "1.2.5",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -46,6 +46,7 @@
     "*.{js,jsx,ts,tsx,vue}": [
       "eslint --fix",
       "prettier --write"
-    ]
+    ],
+    "ignore": ["wailsjs/**"]
   }
 }

@@ -88,6 +88,7 @@ func main() {
 	apiMux.HandleFunc("/api/feeds/add", h.HandleAddFeed)
 	apiMux.HandleFunc("/api/feeds/delete", h.HandleDeleteFeed)
 	apiMux.HandleFunc("/api/feeds/update", h.HandleUpdateFeed)
+	apiMux.HandleFunc("/api/feeds/refresh", h.HandleRefreshFeed)
 	apiMux.HandleFunc("/api/feeds/discover", h.HandleDiscoverBlogs)
 	apiMux.HandleFunc("/api/feeds/discover-all", h.HandleDiscoverAllFeeds)
 	apiMux.HandleFunc("/api/feeds/discover/start", h.HandleStartSingleDiscovery)
@@ -117,6 +118,9 @@ func main() {
 	apiMux.HandleFunc("/api/install-update", h.HandleInstallUpdate)
 	apiMux.HandleFunc("/api/version", h.HandleVersion)
 	apiMux.HandleFunc("/api/rules/apply", h.HandleApplyRule)
+	apiMux.HandleFunc("/api/scripts/dir", h.HandleGetScriptsDir)
+	apiMux.HandleFunc("/api/scripts/open", h.HandleOpenScriptsDir)
+	apiMux.HandleFunc("/api/scripts/list", h.HandleListScripts)
 
 	// Static Files
 	log.Println("Setting up static files...")
