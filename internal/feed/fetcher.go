@@ -59,6 +59,34 @@ func (f *Fetcher) GetProgress() Progress {
 	return f.progress
 }
 
+// setupTranslator configures the translator based on database settings.
+func (f *Fetcher) setupTranslator() {
+	provider, _ := f.db.GetSetting("translation_provider")
+	apiKey, _ := f.db.GetSetting("deepl_api_key")
+
+	var t translation.Translator
+	if provider == "deepl" && apiKey != "" {
+		t = translation.NewDeepLTranslator(apiKey)
+	} else {
+		t = translation.NewGoogleFreeTranslator()
+	}
+	f.translator = t
+}
+
+// waitForProgressComplete waits for any running operation to complete with a timeout.
+// Returns true if the wait was successful, false if timeout occurred.
+func (f *Fetcher) waitForProgressComplete(timeout time.Duration) bool {
+	deadline := time.Now().Add(timeout)
+	for f.GetProgress().IsRunning {
+		if time.Now().After(deadline) {
+			log.Println("Timeout waiting for previous operation to complete")
+			return false
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return true
+}
+
 func (f *Fetcher) FetchAll(ctx context.Context) {
 	f.mu.Lock()
 	if f.progress.IsRunning {
@@ -70,16 +98,7 @@ func (f *Fetcher) FetchAll(ctx context.Context) {
 	f.mu.Unlock()
 
 	// Setup translator based on settings
-	provider, _ := f.db.GetSetting("translation_provider")
-	apiKey, _ := f.db.GetSetting("deepl_api_key")
-
-	var t translation.Translator
-	if provider == "deepl" && apiKey != "" {
-		t = translation.NewDeepLTranslator(apiKey)
-	} else {
-		t = translation.NewGoogleFreeTranslator()
-	}
-	f.translator = t
+	f.setupTranslator()
 
 	feeds, err := f.db.GetFeeds()
 	if err != nil {
@@ -278,9 +297,10 @@ func (f *Fetcher) FetchSingleFeed(ctx context.Context, feed models.Feed) {
 	f.mu.Lock()
 	if f.progress.IsRunning {
 		f.mu.Unlock()
-		// Wait for current operation to complete
-		for f.GetProgress().IsRunning {
-			time.Sleep(100 * time.Millisecond)
+		// Wait for current operation to complete with timeout
+		if !f.waitForProgressComplete(5 * time.Minute) {
+			log.Println("FetchSingleFeed: Timeout waiting for previous operation")
+			return
 		}
 		f.mu.Lock()
 	}
@@ -290,16 +310,7 @@ func (f *Fetcher) FetchSingleFeed(ctx context.Context, feed models.Feed) {
 	f.mu.Unlock()
 
 	// Setup translator based on settings
-	provider, _ := f.db.GetSetting("translation_provider")
-	apiKey, _ := f.db.GetSetting("deepl_api_key")
-
-	var t translation.Translator
-	if provider == "deepl" && apiKey != "" {
-		t = translation.NewDeepLTranslator(apiKey)
-	} else {
-		t = translation.NewGoogleFreeTranslator()
-	}
-	f.translator = t
+	f.setupTranslator()
 
 	// Fetch the feed
 	f.FetchFeed(ctx, feed)
@@ -320,9 +331,10 @@ func (f *Fetcher) FetchFeedsByIDs(ctx context.Context, feedIDs []int64) {
 	f.mu.Lock()
 	if f.progress.IsRunning {
 		f.mu.Unlock()
-		// Wait for current operation to complete
-		for f.GetProgress().IsRunning {
-			time.Sleep(100 * time.Millisecond)
+		// Wait for current operation to complete with timeout
+		if !f.waitForProgressComplete(5 * time.Minute) {
+			log.Println("FetchFeedsByIDs: Timeout waiting for previous operation")
+			return
 		}
 		f.mu.Lock()
 	}
@@ -332,16 +344,7 @@ func (f *Fetcher) FetchFeedsByIDs(ctx context.Context, feedIDs []int64) {
 	f.mu.Unlock()
 
 	// Setup translator based on settings
-	provider, _ := f.db.GetSetting("translation_provider")
-	apiKey, _ := f.db.GetSetting("deepl_api_key")
-
-	var t translation.Translator
-	if provider == "deepl" && apiKey != "" {
-		t = translation.NewDeepLTranslator(apiKey)
-	} else {
-		t = translation.NewGoogleFreeTranslator()
-	}
-	f.translator = t
+	f.setupTranslator()
 
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, 5) // Limit concurrency
