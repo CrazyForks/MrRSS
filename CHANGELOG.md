@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Category headers are now sticky for scroll context retention.
 - Feed refresh now skipped on startup if last article update interval is within set threshold.
 - After each article refresh completes, the app now checks for updates. If a new version is detected, it automatically downloads and installs in the background.
+- Changed some default settings.
 
 ### Fixed
 
