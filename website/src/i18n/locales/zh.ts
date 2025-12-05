@@ -23,7 +23,7 @@ const zh: WebsiteMessages = {
     autoTranslation: {
       title: '自动翻译',
       description:
-        '使用 Google 翻译或 DeepL API 即时翻译文章标题和内容。打破语言障碍，轻松访问全球内容。',
+        '使用常见的翻译服务或者 AI 翻译即时翻译文章标题和内容。打破语言障碍，轻松访问全球内容。',
     },
     smartDiscovery: {
       title: '智能订阅源发现',

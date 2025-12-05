@@ -142,6 +142,8 @@ export interface TranslationMessages {
   enableTranslationDesc: string;
   translationProvider: string;
   translationProviderDesc: string;
+  googleTranslate: string;
+  deeplApi: string;
   deeplApiKey: string;
   deeplApiKeyDesc: string;
   deeplApiKeyPlaceholder: string;

@@ -5,6 +5,20 @@ All notable changes to MrRSS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Supported Baidu Translation and AI-based translation.
+
+### Changed
+
+- Errors from translation services are now logged and displayed to users for better troubleshooting.
+
+### Fixed
+
+- Fixed the issue where the default settings were not applied correctly on first launch.
+
 ## [1.2.8] - 2025-12-04
 
 ### Added
@@ -242,7 +256,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Smart Organization**: Organize feeds into categories
 - **Favorites & Reading Tracking**: Save articles and track read/unread status
 - **Modern UI**: Clean, responsive interface with dark mode support
-- **Auto-Translation**: Translate article titles using Google Translate or DeepL API
+- **Auto-Translation**: Translate article titles using translation services or AI-based translation
 - **OPML Support**: Import and export feed subscriptions
 - **Auto-Update**: Configurable interval for fetching new articles
 - **Database Cleanup**: Automatic removal of old articles

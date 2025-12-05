@@ -90,8 +90,10 @@ handlers/
 #### Translation (`internal/translation/`)
 
 - `translator.go` - Translation interface and factory
-- `google_free.go` - Google Translate (free, no API key)
+- `google.go` - Google Translate (free, no API key)
 - `deepl.go` - DeepL API integration
+- `baidu.go` - Baidu Translation API integration
+- `ai.go` - AI-based translation integration
 
 ## Frontend Architecture
 
@@ -187,7 +189,7 @@ Auto-translation features:
 - Title translation (on-demand)
 - Content paragraph translation (inline display)
 - Summary translation
-- Supports Google Translate and DeepL
+- Supports Google Translate, DeepL, Baidu Translation, and AI-based translation
 
 ## Communication Flow
 

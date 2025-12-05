@@ -19,7 +19,7 @@
 ## ✨ Features
 
 - 🖥️ **Cross-Platform**: Native desktop app for Windows, macOS, and Linux
-- 🌐 **Auto-Translation**: Translate article titles and content using Google Translate or DeepL API
+- 🌐 **Auto-Translation**: Translate article titles and content using translate service or AI
 - 🔍 **Smart Feed Discovery**: Automatically discover new feeds from friend links and related sources
 - ⭐ **Favorites & Reading Tracking**: Save articles and track read/unread status
 - 📝 **Local Article Summarization**: Generate article summaries locally using TF-IDF and TextRank algorithms
