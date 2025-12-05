@@ -142,6 +142,8 @@ export interface TranslationMessages {
   enableTranslationDesc: string;
   translationProvider: string;
   translationProviderDesc: string;
+  googleTranslate: string;
+  deeplApi: string;
   deeplApiKey: string;
   deeplApiKeyDesc: string;
   deeplApiKeyPlaceholder: string;
@@ -154,6 +156,19 @@ export interface TranslationMessages {
   summary: string;
   enableSummary: string;
   enableSummaryDesc: string;
+  summaryProvider: string;
+  summaryProviderDesc: string;
+  localAlgorithm: string;
+  aiSummary: string;
+  summaryAiApiKey: string;
+  summaryAiApiKeyDesc: string;
+  summaryAiApiKeyPlaceholder: string;
+  summaryAiEndpoint: string;
+  summaryAiEndpointDesc: string;
+  summaryAiEndpointPlaceholder: string;
+  summaryAiModel: string;
+  summaryAiModelDesc: string;
+  summaryAiModelPlaceholder: string;
   summaryLength: string;
   summaryLengthDesc: string;
   summaryLengthShort: string;

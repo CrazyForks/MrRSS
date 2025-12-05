@@ -8,6 +8,11 @@ export interface SettingsData {
   target_language: string;
   translation_provider: string;
   deepl_api_key: string;
+  baidu_app_id: string;
+  baidu_secret_key: string;
+  ai_api_key: string;
+  ai_endpoint: string;
+  ai_model: string;
   auto_cleanup_enabled: boolean;
   max_cache_size_mb: number;
   max_article_age_days: number;
@@ -21,6 +26,10 @@ export interface SettingsData {
   rules: string;
   summary_enabled: boolean;
   summary_length: string;
+  summary_provider: string;
+  summary_ai_api_key: string;
+  summary_ai_endpoint: string;
+  summary_ai_model: string;
   [key: string]: unknown; // Allow additional properties
 }
 

@@ -17,7 +17,7 @@
 
 - 📰 **Feed Management**: RSS/Atom subscription with custom script support (Python, Shell, Node.js, Ruby, PowerShell)
 - 📝 **Article Summarization**: Local TF-IDF + TextRank algorithms (no API required)
-- 🌐 **Translation**: Google Translate (free) or DeepL API for titles, content, and summaries
+- 🌐 **Translation**: Translation service or AI-based translation for titles, content, and summaries
 - 🔍 **Smart Discovery**: Batch feed discovery from friend links with progress tracking
 - 📋 **Smart Rules**: "If-then" filtering rules for automatic article organization
 - 🎨 **Multimedia Support**: Enhanced rendering for images, audio, video, embedded content
@@ -49,7 +49,7 @@ MrRSS/
 │   ├── opml/                    # OPML import/export
 │   ├── rules/                   # Filtering rules engine
 │   ├── summary/                 # TF-IDF + TextRank algorithms
-│   ├── translation/             # Google Translate + DeepL
+│   ├── translation/             # Google Translate + DeepL + Baidu Translation + AI-based translation
 │   ├── utils/                   # Platform utilities
 │   └── version/                 # Version constant
 ├── frontend/src/
@@ -89,7 +89,7 @@ MrRSS/
 - **Framework**: Wails v2.11+ with HTTP API endpoints (not Wails bindings)
 - **Database**: SQLite with `modernc.org/sqlite`, WAL mode enabled
 - **RSS Parsing**: `gofeed` library with concurrent fetching
-- **Translation**: Google Translate (free) + DeepL API
+- **Translation**: Google Translate + DeepL + Baidu Translation + AI-based translation
 - **Concurrency**: Goroutines for parallel operations
 - **Security**: Input validation, safe file operations, no shell injection
 

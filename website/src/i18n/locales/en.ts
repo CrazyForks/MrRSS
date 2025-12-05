@@ -24,7 +24,7 @@ const en: WebsiteMessages = {
     autoTranslation: {
       title: 'Auto-Translation',
       description:
-        'Instantly translate article titles and content using Google Translate or DeepL API. Break down language barriers and access global content effortlessly.',
+        'Instantly translate article titles and content using popular translation services or AI-based translation. Break language barriers and access global content with ease.',
     },
     smartDiscovery: {
       title: 'Smart Feed Discovery',

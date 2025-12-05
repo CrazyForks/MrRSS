@@ -77,21 +77,30 @@ handlers/
 #### Summarization (`internal/summary/`)
 
 - `summarizer.go` - TF-IDF and TextRank-based summarization
+- `ai_summarizer.go` - AI-based summarization using OpenAI-compatible APIs
 - `scoring.go` - Sentence scoring algorithms
 - `text_utils.go` - Text processing utilities
 
-**Algorithms**:
+**Local Algorithms**:
 
 - TF-IDF for term importance
 - TextRank for sentence ranking
 - Combined scoring (0.5 TF-IDF + 0.5 TextRank)
 - Smart sentence selection preserving narrative flow
 
+**AI Summarization**:
+
+- Supports OpenAI-compatible APIs (GPT, Claude, etc.)
+- Configurable API endpoint and model
+- Token-efficient prompts
+
 #### Translation (`internal/translation/`)
 
 - `translator.go` - Translation interface and factory
-- `google_free.go` - Google Translate (free, no API key)
+- `google.go` - Google Translate (free, no API key)
 - `deepl.go` - DeepL API integration
+- `baidu.go` - Baidu Translation API integration
+- `ai.go` - AI-based translation integration
 
 ## Frontend Architecture
 
@@ -187,7 +196,7 @@ Auto-translation features:
 - Title translation (on-demand)
 - Content paragraph translation (inline display)
 - Summary translation
-- Supports Google Translate and DeepL
+- Supports Google Translate, DeepL, Baidu Translation, and AI-based translation
 
 ## Communication Flow
 
