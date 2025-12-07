@@ -5,6 +5,7 @@ import (
 	"MrRSS/internal/translation"
 	"context"
 	"testing"
+	"time"
 
 	"github.com/mmcdole/gofeed"
 )
@@ -291,10 +292,11 @@ func TestFetchFeedWithImageEnclosure(t *testing.T) {
 		Description: "Test Description",
 		Items: []*gofeed.Item{
 			{
-				Title:       "Article with PNG",
-				Link:        "http://test.com/article1",
-				Description: "Article Description",
-				Content:     "Article Content",
+				Title:           "Article with PNG",
+				Link:            "http://test.com/article1",
+				Description:     "Article Description",
+				Content:         "Article Content",
+				PublishedParsed: &[]time.Time{time.Now().Add(time.Hour)}[0], // More recent
 				Enclosures: []*gofeed.Enclosure{
 					{
 						URL:    "https://test.com/images/image1.png",
@@ -304,10 +306,11 @@ func TestFetchFeedWithImageEnclosure(t *testing.T) {
 				},
 			},
 			{
-				Title:       "Article with JPEG",
-				Link:        "http://test.com/article2",
-				Description: "Article Description",
-				Content:     "Article Content",
+				Title:           "Article with JPEG",
+				Link:            "http://test.com/article2",
+				Description:     "Article Description",
+				Content:         "Article Content",
+				PublishedParsed: &[]time.Time{time.Now()}[0], // Less recent
 				Enclosures: []*gofeed.Enclosure{
 					{
 						URL:    "https://test.com/images/image2.jpg",
