@@ -78,9 +78,11 @@ defineProps<Props>();
             :placeholder="t('summaryAiApiKeyPlaceholder')"
             :class="[
               'input-field w-32 sm:w-48 text-xs sm:text-sm',
-              settings.summary_enabled && 
-              settings.summary_provider === 'ai' && 
-              !settings.summary_ai_api_key?.trim() ? 'border-red-500' : ''
+              settings.summary_enabled &&
+              settings.summary_provider === 'ai' &&
+              !settings.summary_ai_api_key?.trim()
+                ? 'border-red-500'
+                : '',
             ]"
           />
         </div>

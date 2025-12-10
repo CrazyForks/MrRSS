@@ -16,9 +16,7 @@ export function useSettingsValidation(settings: Ref<SettingsData>) {
     if (settings.value.translation_provider === 'deepl') {
       return !!settings.value.deepl_api_key?.trim();
     } else if (settings.value.translation_provider === 'baidu') {
-      return !!(
-        settings.value.baidu_app_id?.trim() && settings.value.baidu_secret_key?.trim()
-      );
+      return !!(settings.value.baidu_app_id?.trim() && settings.value.baidu_secret_key?.trim());
     } else if (settings.value.translation_provider === 'ai') {
       return !!settings.value.ai_api_key?.trim();
     }

@@ -155,7 +155,8 @@ async function openScriptsFolder() {
       </div>
       <div class="flex-1 overflow-y-auto p-4 sm:p-6">
         <div class="mb-3 sm:mb-4">
-          <label class="block mb-1 sm:mb-1.5 font-semibold text-xs sm:text-sm text-text-secondary"
+          <label
+            class="block mb-1 sm:mb-1.5 font-semibold text-xs sm:text-sm text-text-secondary"
             >{{ t('title') }}</label
           >
           <input
@@ -168,18 +169,14 @@ async function openScriptsFolder() {
 
         <!-- URL Input (default mode) -->
         <div v-if="feedType === 'url'" class="mb-3 sm:mb-4">
-          <label
-            class="block mb-1 sm:mb-1.5 font-semibold text-xs sm:text-sm text-text-secondary"
+          <label class="block mb-1 sm:mb-1.5 font-semibold text-xs sm:text-sm text-text-secondary"
             >{{ t('rssUrl') }} <span class="text-red-500">*</span></label
           >
           <input
             v-model="url"
             type="text"
             :placeholder="t('rssUrlPlaceholder')"
-            :class="[
-              'input-field',
-              feedType === 'url' && !url.trim() ? 'border-red-500' : ''
-            ]"
+            :class="['input-field', feedType === 'url' && !url.trim() ? 'border-red-500' : '']"
           />
           <div class="mt-2">
             <button
@@ -194,16 +191,15 @@ async function openScriptsFolder() {
 
         <!-- Script Selection (advanced mode) -->
         <div v-else class="mb-3 sm:mb-4">
-          <label
-            class="block mb-1 sm:mb-1.5 font-semibold text-xs sm:text-sm text-text-secondary"
+          <label class="block mb-1 sm:mb-1.5 font-semibold text-xs sm:text-sm text-text-secondary"
             >{{ t('selectScript') }} <span class="text-red-500">*</span></label
           >
           <div v-if="availableScripts.length > 0" class="mb-2">
-            <select 
-              v-model="scriptPath" 
+            <select
+              v-model="scriptPath"
               :class="[
                 'input-field',
-                feedType === 'script' && !scriptPath.trim() ? 'border-red-500' : ''
+                feedType === 'script' && !scriptPath.trim() ? 'border-red-500' : '',
               ]"
             >
               <option value="">{{ t('selectScriptPlaceholder') }}</option>

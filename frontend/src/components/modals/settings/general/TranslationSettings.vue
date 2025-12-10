@@ -79,9 +79,11 @@ defineProps<Props>();
           :placeholder="t('deeplApiKeyPlaceholder')"
           :class="[
             'input-field w-32 sm:w-48 text-xs sm:text-sm',
-            settings.translation_enabled && 
-            settings.translation_provider === 'deepl' && 
-            !settings.deepl_api_key?.trim() ? 'border-red-500' : ''
+            settings.translation_enabled &&
+            settings.translation_provider === 'deepl' &&
+            !settings.deepl_api_key?.trim()
+              ? 'border-red-500'
+              : '',
           ]"
         />
       </div>
@@ -106,9 +108,11 @@ defineProps<Props>();
             :placeholder="t('baiduAppIdPlaceholder')"
             :class="[
               'input-field w-32 sm:w-48 text-xs sm:text-sm',
-              settings.translation_enabled && 
-              settings.translation_provider === 'baidu' && 
-              !settings.baidu_app_id?.trim() ? 'border-red-500' : ''
+              settings.translation_enabled &&
+              settings.translation_provider === 'baidu' &&
+              !settings.baidu_app_id?.trim()
+                ? 'border-red-500'
+                : '',
             ]"
           />
         </div>
@@ -130,9 +134,11 @@ defineProps<Props>();
             :placeholder="t('baiduSecretKeyPlaceholder')"
             :class="[
               'input-field w-32 sm:w-48 text-xs sm:text-sm',
-              settings.translation_enabled && 
-              settings.translation_provider === 'baidu' && 
-              !settings.baidu_secret_key?.trim() ? 'border-red-500' : ''
+              settings.translation_enabled &&
+              settings.translation_provider === 'baidu' &&
+              !settings.baidu_secret_key?.trim()
+                ? 'border-red-500'
+                : '',
             ]"
           />
         </div>
@@ -158,9 +164,11 @@ defineProps<Props>();
             :placeholder="t('aiApiKeyPlaceholder')"
             :class="[
               'input-field w-32 sm:w-48 text-xs sm:text-sm',
-              settings.translation_enabled && 
-              settings.translation_provider === 'ai' && 
-              !settings.ai_api_key?.trim() ? 'border-red-500' : ''
+              settings.translation_enabled &&
+              settings.translation_provider === 'ai' &&
+              !settings.ai_api_key?.trim()
+                ? 'border-red-500'
+                : '',
             ]"
           />
         </div>
