@@ -17,6 +17,9 @@ export interface SettingsData {
   auto_cleanup_enabled: boolean;
   max_cache_size_mb: number;
   max_article_age_days: number;
+  media_cache_enabled: boolean;
+  media_cache_max_size_mb: number;
+  media_cache_max_age_days: number;
   language: string;
   theme: string;
   last_article_update: string;

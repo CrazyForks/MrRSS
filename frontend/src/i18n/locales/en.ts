@@ -148,6 +148,19 @@ const en: TranslationMessages = {
   maxCacheSizeDesc: 'Maximum database size before cleanup (in MB)',
   maxArticleAge: 'Max Article Age',
   maxArticleAgeDesc: 'Delete articles older than this many days (except favorites)',
+  mediaCache: 'Media Cache',
+  mediaCacheDesc: 'Cache images and videos to bypass anti-hotlinking restrictions',
+  mediaCacheEnabled: 'Enable Media Cache',
+  mediaCacheEnabledDesc:
+    'Cache media files locally to avoid broken links from anti-hotlinking protection',
+  mediaCacheMaxSize: 'Max Cache Size',
+  mediaCacheMaxSizeDesc: 'Maximum media cache size (in MB)',
+  mediaCacheMaxAge: 'Max Cache Age',
+  mediaCacheMaxAgeDesc: 'Delete cached media older than this many days',
+  currentCacheSize: 'Current cache size',
+  mediaCacheCleanup: 'Clean Media Cache',
+  mediaCacheCleanupDesc: 'Remove old cached media files',
+  cleanupMediaCache: 'Clean Cache',
   days: 'days',
   translation: 'Translation',
   enableTranslation: 'Enable Translation',
@@ -296,6 +309,7 @@ const en: TranslationMessages = {
   cleanDatabaseTitle: 'Clean Database',
   cleanDatabaseMessage: 'This will delete all articles except read and favorited ones. Continue?',
   clean: 'Clean',
+  cleaning: 'Cleaning...',
 
   // Toast Messages
   feedAddedSuccess: 'Feed added successfully',

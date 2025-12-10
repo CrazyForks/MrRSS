@@ -136,6 +136,18 @@ export interface TranslationMessages {
   maxCacheSizeDesc: string;
   maxArticleAge: string;
   maxArticleAgeDesc: string;
+  mediaCache: string;
+  mediaCacheDesc: string;
+  mediaCacheEnabled: string;
+  mediaCacheEnabledDesc: string;
+  mediaCacheMaxSize: string;
+  mediaCacheMaxSizeDesc: string;
+  mediaCacheMaxAge: string;
+  mediaCacheMaxAgeDesc: string;
+  currentCacheSize: string;
+  mediaCacheCleanup: string;
+  mediaCacheCleanupDesc: string;
+  cleanupMediaCache: string;
   days: string;
   translation: string;
   enableTranslation: string;
@@ -253,6 +265,7 @@ export interface TranslationMessages {
   cleanDatabaseTitle: string;
   cleanDatabaseMessage: string;
   clean: string;
+  cleaning: string;
 
   // Toast Messages
   feedAddedSuccess: string;
