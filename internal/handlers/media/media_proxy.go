@@ -1,6 +1,7 @@
 package media
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"strconv"
@@ -122,7 +123,11 @@ func HandleMediaCacheCleanup(h *core.Handler, w http.ResponseWriter, r *http.Req
 	log.Printf("Media cache cleanup: removed %d files", totalCleaned)
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(`{"success": true, "files_cleaned": ` + strconv.Itoa(totalCleaned) + `}`))
+	response := map[string]interface{}{
+		"success":       true,
+		"files_cleaned": totalCleaned,
+	}
+	json.NewEncoder(w).Encode(response)
 }
 
 // HandleMediaCacheInfo returns information about the media cache
@@ -160,5 +165,8 @@ func HandleMediaCacheInfo(h *core.Handler, w http.ResponseWriter, r *http.Reques
 	cacheSizeMB := float64(cacheSize) / (1024 * 1024)
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(`{"cache_size_mb": ` + strconv.FormatFloat(cacheSizeMB, 'f', 2, 64) + `}`))
+	response := map[string]interface{}{
+		"cache_size_mb": cacheSizeMB,
+	}
+	json.NewEncoder(w).Encode(response)
 }

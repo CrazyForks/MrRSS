@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -61,6 +62,15 @@ func (mc *MediaCache) Get(url, referer string) ([]byte, string, error) {
 	data, contentType, err := mc.download(url, referer)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to download media: %w", err)
+	}
+
+	// Determine better file extension from Content-Type if available
+	if contentType != "" {
+		betterExt := getExtensionFromContentType(contentType)
+		if betterExt != "" {
+			// Update cached path with correct extension
+			cachedPath = filepath.Join(mc.cacheDir, hashURL(url)+betterExt)
+		}
 	}
 
 	// Save to cache
@@ -209,14 +219,10 @@ func (mc *MediaCache) CleanupBySize(maxSizeMB int) (int, error) {
 		})
 	}
 
-	// Sort by modification time (oldest first)
-	for i := 0; i < len(files)-1; i++ {
-		for j := i + 1; j < len(files); j++ {
-			if files[i].modTime.After(files[j].modTime) {
-				files[i], files[j] = files[j], files[i]
-			}
-		}
-	}
+	// Sort by modification time (oldest first) using built-in sort for better performance
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].modTime.Before(files[j].modTime)
+	})
 
 	// Remove oldest files until under limit
 	count := 0
@@ -291,5 +297,41 @@ func getContentTypeFromPath(path string) string {
 		return "audio/mp4"
 	default:
 		return "application/octet-stream"
+	}
+}
+
+// getExtensionFromContentType determines file extension from Content-Type header
+func getExtensionFromContentType(contentType string) string {
+	// Remove any parameters from content type
+	if idx := strings.Index(contentType, ";"); idx != -1 {
+		contentType = contentType[:idx]
+	}
+	contentType = strings.TrimSpace(strings.ToLower(contentType))
+
+	switch contentType {
+	case "image/jpeg":
+		return ".jpg"
+	case "image/png":
+		return ".png"
+	case "image/gif":
+		return ".gif"
+	case "image/webp":
+		return ".webp"
+	case "image/svg+xml":
+		return ".svg"
+	case "video/mp4":
+		return ".mp4"
+	case "video/webm":
+		return ".webm"
+	case "video/ogg":
+		return ".ogg"
+	case "audio/mpeg":
+		return ".mp3"
+	case "audio/wav":
+		return ".wav"
+	case "audio/mp4":
+		return ".m4a"
+	default:
+		return ""
 	}
 }
