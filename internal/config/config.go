@@ -37,6 +37,14 @@ type Defaults struct {
 	SummaryAIEndpoint     string `json:"summary_ai_endpoint"`
 	SummaryAIModel        string `json:"summary_ai_model"`
 	SummaryAISystemPrompt string `json:"summary_ai_system_prompt"`
+	LabelEnabled          bool   `json:"label_enabled"`
+	LabelProvider         string `json:"label_provider"`
+	LabelAIAPIKey         string `json:"label_ai_api_key"`
+	LabelAIEndpoint       string `json:"label_ai_endpoint"`
+	LabelAIModel          string `json:"label_ai_model"`
+	LabelAISystemPrompt   string `json:"label_ai_system_prompt"`
+	LabelShowInList       bool   `json:"label_show_in_list"`
+	LabelMaxCount         string `json:"label_max_count"`
 	AutoCleanupEnabled    bool   `json:"auto_cleanup_enabled"`
 	MaxCacheSizeMB        int    `json:"max_cache_size_mb"`
 	MaxArticleAgeDays     int    `json:"max_article_age_days"`
@@ -107,6 +115,22 @@ func GetString(key string) string {
 		return defaults.SummaryAIModel
 	case "summary_ai_system_prompt":
 		return defaults.SummaryAISystemPrompt
+	case "label_enabled":
+		return strconv.FormatBool(defaults.LabelEnabled)
+	case "label_provider":
+		return defaults.LabelProvider
+	case "label_ai_api_key":
+		return defaults.LabelAIAPIKey
+	case "label_ai_endpoint":
+		return defaults.LabelAIEndpoint
+	case "label_ai_model":
+		return defaults.LabelAIModel
+	case "label_ai_system_prompt":
+		return defaults.LabelAISystemPrompt
+	case "label_show_in_list":
+		return strconv.FormatBool(defaults.LabelShowInList)
+	case "label_max_count":
+		return defaults.LabelMaxCount
 	case "auto_cleanup_enabled":
 		return strconv.FormatBool(defaults.AutoCleanupEnabled)
 	case "max_cache_size_mb":

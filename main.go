@@ -21,6 +21,7 @@ import (
 	handlers "MrRSS/internal/handlers/core"
 	discovery "MrRSS/internal/handlers/discovery"
 	feedhandlers "MrRSS/internal/handlers/feed"
+	label "MrRSS/internal/handlers/label"
 	opml "MrRSS/internal/handlers/opml"
 	rules "MrRSS/internal/handlers/rules"
 	script "MrRSS/internal/handlers/script"
@@ -122,6 +123,8 @@ func main() {
 	apiMux.HandleFunc("/api/articles/mark-all-read", func(w http.ResponseWriter, r *http.Request) { article.HandleMarkAllAsRead(h, w, r) })
 	apiMux.HandleFunc("/api/articles/clear-read-later", func(w http.ResponseWriter, r *http.Request) { article.HandleClearReadLater(h, w, r) })
 	apiMux.HandleFunc("/api/articles/summarize", func(w http.ResponseWriter, r *http.Request) { summary.HandleSummarizeArticle(h, w, r) })
+	apiMux.HandleFunc("/api/label/generate", func(w http.ResponseWriter, r *http.Request) { label.HandleGenerateLabels(h, w, r) })
+	apiMux.HandleFunc("/api/label/update", func(w http.ResponseWriter, r *http.Request) { label.HandleUpdateLabels(h, w, r) })
 	apiMux.HandleFunc("/api/settings", func(w http.ResponseWriter, r *http.Request) { settings.HandleSettings(h, w, r) })
 	apiMux.HandleFunc("/api/refresh", func(w http.ResponseWriter, r *http.Request) { article.HandleRefresh(h, w, r) })
 	apiMux.HandleFunc("/api/progress", func(w http.ResponseWriter, r *http.Request) { article.HandleProgress(h, w, r) })

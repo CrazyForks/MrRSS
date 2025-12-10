@@ -73,6 +73,8 @@ func (db *DB) Init() error {
 			"ai_system_prompt", "auto_cleanup_enabled", "max_cache_size_mb", "max_article_age_days", "language", "theme",
 			"last_article_update", "show_hidden_articles", "default_view_mode", "summary_enabled", "summary_length",
 			"summary_provider", "summary_ai_api_key", "summary_ai_endpoint", "summary_ai_model", "summary_ai_system_prompt",
+			"label_enabled", "label_provider", "label_ai_api_key", "label_ai_endpoint", "label_ai_model", "label_ai_system_prompt",
+			"label_show_in_list", "label_max_count",
 			"shortcuts", "rules", "startup_on_boot",
 		}
 		for _, key := range settingsKeys {
@@ -177,6 +179,9 @@ func runMigrations(db *sql.DB) error {
 
 	// Migration: Add video_url column for YouTube video support
 	_, _ = db.Exec(`ALTER TABLE articles ADD COLUMN video_url TEXT DEFAULT ''`)
+
+	// Migration: Add labels column for auto-labeling feature
+	_, _ = db.Exec(`ALTER TABLE articles ADD COLUMN labels TEXT DEFAULT '[]'`)
 
 	return nil
 }

@@ -32,4 +32,5 @@ type Article struct {
 	IsReadLater     bool      `json:"is_read_later"`
 	FeedTitle       string    `json:"feed_title,omitempty"` // Joined field
 	TranslatedTitle string    `json:"translated_title"`
+	Labels          string    `json:"labels"` // JSON array of labels
 }

@@ -42,6 +42,14 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 		summaryAIEndpoint, _ := h.DB.GetSetting("summary_ai_endpoint")
 		summaryAIModel, _ := h.DB.GetSetting("summary_ai_model")
 		summaryAISystemPrompt, _ := h.DB.GetSetting("summary_ai_system_prompt")
+		labelEnabled, _ := h.DB.GetSetting("label_enabled")
+		labelProvider, _ := h.DB.GetSetting("label_provider")
+		labelAIAPIKey, _ := h.DB.GetSetting("label_ai_api_key")
+		labelAIEndpoint, _ := h.DB.GetSetting("label_ai_endpoint")
+		labelAIModel, _ := h.DB.GetSetting("label_ai_model")
+		labelAISystemPrompt, _ := h.DB.GetSetting("label_ai_system_prompt")
+		labelShowInList, _ := h.DB.GetSetting("label_show_in_list")
+		labelMaxCount, _ := h.DB.GetSetting("label_max_count")
 		json.NewEncoder(w).Encode(map[string]string{
 			"update_interval":          interval,
 			"translation_enabled":      translationEnabled,
@@ -72,6 +80,14 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 			"summary_ai_endpoint":      summaryAIEndpoint,
 			"summary_ai_model":         summaryAIModel,
 			"summary_ai_system_prompt": summaryAISystemPrompt,
+			"label_enabled":            labelEnabled,
+			"label_provider":           labelProvider,
+			"label_ai_api_key":         labelAIAPIKey,
+			"label_ai_endpoint":        labelAIEndpoint,
+			"label_ai_model":           labelAIModel,
+			"label_ai_system_prompt":   labelAISystemPrompt,
+			"label_show_in_list":       labelShowInList,
+			"label_max_count":          labelMaxCount,
 		})
 	case http.MethodPost:
 		var req struct {
@@ -103,6 +119,14 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 			SummaryAIEndpoint     string `json:"summary_ai_endpoint"`
 			SummaryAIModel        string `json:"summary_ai_model"`
 			SummaryAISystemPrompt string `json:"summary_ai_system_prompt"`
+			LabelEnabled          string `json:"label_enabled"`
+			LabelProvider         string `json:"label_provider"`
+			LabelAIAPIKey         string `json:"label_ai_api_key"`
+			LabelAIEndpoint       string `json:"label_ai_endpoint"`
+			LabelAIModel          string `json:"label_ai_model"`
+			LabelAISystemPrompt   string `json:"label_ai_system_prompt"`
+			LabelShowInList       string `json:"label_show_in_list"`
+			LabelMaxCount         string `json:"label_max_count"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -180,6 +204,28 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 		h.DB.SetSetting("summary_ai_endpoint", req.SummaryAIEndpoint)
 		h.DB.SetSetting("summary_ai_model", req.SummaryAIModel)
 		h.DB.SetSetting("summary_ai_system_prompt", req.SummaryAISystemPrompt)
+
+		if req.LabelEnabled != "" {
+			h.DB.SetSetting("label_enabled", req.LabelEnabled)
+		}
+
+		if req.LabelProvider != "" {
+			h.DB.SetSetting("label_provider", req.LabelProvider)
+		}
+
+		// Always update AI label keys as they might be cleared
+		h.DB.SetSetting("label_ai_api_key", req.LabelAIAPIKey)
+		h.DB.SetSetting("label_ai_endpoint", req.LabelAIEndpoint)
+		h.DB.SetSetting("label_ai_model", req.LabelAIModel)
+		h.DB.SetSetting("label_ai_system_prompt", req.LabelAISystemPrompt)
+
+		if req.LabelShowInList != "" {
+			h.DB.SetSetting("label_show_in_list", req.LabelShowInList)
+		}
+
+		if req.LabelMaxCount != "" {
+			h.DB.SetSetting("label_max_count", req.LabelMaxCount)
+		}
 
 		if req.StartupOnBoot != "" {
 			// Get current value to check if it changed
