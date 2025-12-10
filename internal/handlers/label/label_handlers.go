@@ -167,6 +167,25 @@ func HandleUpdateLabels(h *core.Handler, w http.ResponseWriter, r *http.Request)
 	})
 }
 
+// HandleClearLabels clears all labels from the database.
+func HandleClearLabels(h *core.Handler, w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if err := h.DB.ClearAllLabels(); err != nil {
+		log.Printf("Error clearing labels: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+	})
+}
+
 // getArticleContent fetches the content of an article by ID
 func getArticleContent(h *core.Handler, articleID int64) (string, error) {
 	// Get the article directly by ID

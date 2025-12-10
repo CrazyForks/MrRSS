@@ -25,8 +25,19 @@ export function useSettingsAutoSave(settings: Ref<SettingsData>) {
     provider: settingsDefaults.translation_provider,
   });
 
+  // Track previous label settings
+  const prevLabelSettings: Ref<{
+    enabled: boolean;
+    provider: string;
+    maxCount: string;
+  }> = ref({
+    enabled: settingsDefaults.label_enabled,
+    provider: settingsDefaults.label_provider,
+    maxCount: settingsDefaults.label_max_count,
+  });
+
   /**
-   * Initialize translation tracking
+   * Initialize settings tracking
    */
   onMounted(() => {
     setTimeout(() => {
@@ -34,6 +45,11 @@ export function useSettingsAutoSave(settings: Ref<SettingsData>) {
         enabled: settings.value.translation_enabled,
         targetLang: settings.value.target_language,
         provider: settings.value.translation_provider,
+      };
+      prevLabelSettings.value = {
+        enabled: settings.value.label_enabled,
+        provider: settings.value.label_provider,
+        maxCount: settings.value.label_max_count,
       };
       isInitialLoad = false;
     }, 100);
@@ -44,7 +60,7 @@ export function useSettingsAutoSave(settings: Ref<SettingsData>) {
    */
   async function autoSave() {
     try {
-      // Skip translation clearing on initial load
+      // Skip clearing on initial load
       if (isInitialLoad) {
         return;
       }
@@ -55,6 +71,12 @@ export function useSettingsAutoSave(settings: Ref<SettingsData>) {
         prevTranslationSettings.value.provider !== settings.value.translation_provider ||
         (settings.value.translation_enabled &&
           prevTranslationSettings.value.targetLang !== settings.value.target_language);
+
+      // Check if label settings changed
+      const labelChanged =
+        prevLabelSettings.value.enabled !== settings.value.label_enabled ||
+        prevLabelSettings.value.provider !== settings.value.label_provider ||
+        prevLabelSettings.value.maxCount !== settings.value.label_max_count;
 
       await fetch('/api/settings', {
         method: 'POST',
@@ -156,6 +178,29 @@ export function useSettingsAutoSave(settings: Ref<SettingsData>) {
           })
         );
         // Refresh articles to show without translations, then re-translate if enabled
+        store.fetchArticles();
+      }
+
+      // Clear and re-label if label settings changed
+      if (labelChanged) {
+        await fetch('/api/label/clear', { method: 'POST' });
+        // Update tracking
+        prevLabelSettings.value = {
+          enabled: settings.value.label_enabled,
+          provider: settings.value.label_provider,
+          maxCount: settings.value.label_max_count,
+        };
+        // Notify ArticleList about label settings change
+        window.dispatchEvent(
+          new CustomEvent('label-settings-changed', {
+            detail: {
+              enabled: settings.value.label_enabled,
+              provider: settings.value.label_provider,
+              maxCount: parseInt(settings.value.label_max_count || '5'),
+            },
+          })
+        );
+        // Refresh articles to show without labels, then re-label if enabled
         store.fetchArticles();
       }
 

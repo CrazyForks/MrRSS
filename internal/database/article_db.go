@@ -202,6 +202,13 @@ func (db *DB) ClearAllTranslations() error {
 	return err
 }
 
+// ClearAllLabels clears all labels from articles.
+func (db *DB) ClearAllLabels() error {
+	db.WaitForReady()
+	_, err := db.Exec("UPDATE articles SET labels = '[]'")
+	return err
+}
+
 // ToggleArticleHidden toggles the is_hidden status of an article.
 func (db *DB) ToggleArticleHidden(id int64) error {
 	db.WaitForReady()

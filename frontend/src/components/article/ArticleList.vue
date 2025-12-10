@@ -13,6 +13,7 @@ import {
 import ArticleFilterModal from '../modals/filter/ArticleFilterModal.vue';
 import ArticleItem from './ArticleItem.vue';
 import { useArticleTranslation } from '@/composables/article/useArticleTranslation';
+import { useArticleLabels } from '@/composables/article/useArticleLabels';
 import { useArticleFilter } from '@/composables/article/useArticleFilter';
 import { useArticleActions } from '@/composables/article/useArticleActions';
 import type { Article } from '@/types/models';
@@ -47,6 +48,15 @@ const {
 } = useArticleTranslation();
 
 const {
+  labelSettings,
+  loadLabelSettings,
+  setupIntersectionObserver: setupLabelObserver,
+  observeArticle: observeLabelArticle,
+  handleLabelSettingsChange,
+  cleanup: cleanupLabels,
+} = useArticleLabels();
+
+const {
   activeFilters,
   filteredArticlesFromServer,
   isFilterLoading,
@@ -68,6 +78,7 @@ const filteredArticles = computed(() => {
 // Load settings and setup
 onMounted(async () => {
   await loadTranslationSettings();
+  await loadLabelSettings();
 
   try {
     const res = await fetch('/api/settings');
@@ -78,6 +89,11 @@ onMounted(async () => {
     if (translationSettings.value.enabled && listRef.value) {
       setupIntersectionObserver(listRef.value, store.articles);
     }
+
+    // Set up intersection observer for auto-labeling
+    if (labelSettings.value.enabled && listRef.value) {
+      setupLabelObserver(listRef.value, store.articles);
+    }
   } catch (e) {
     console.error('Error loading settings:', e);
   }
@@ -86,6 +102,11 @@ onMounted(async () => {
   window.addEventListener(
     'translation-settings-changed',
     onTranslationSettingsChanged as EventListener
+  );
+  // Listen for label settings changes
+  window.addEventListener(
+    'label-settings-changed',
+    onLabelSettingsChanged as EventListener
   );
   // Listen for default view mode changes
   window.addEventListener('default-view-mode-changed', onDefaultViewModeChanged as EventListener);
@@ -123,9 +144,14 @@ watch(
 
 onBeforeUnmount(() => {
   cleanupTranslation();
+  cleanupLabels();
   window.removeEventListener(
     'translation-settings-changed',
     onTranslationSettingsChanged as EventListener
+  );
+  window.removeEventListener(
+    'label-settings-changed',
+    onLabelSettingsChanged as EventListener
   );
   window.removeEventListener(
     'default-view-mode-changed',
@@ -139,6 +165,8 @@ interface CustomEventDetail {
   mode?: string;
   enabled?: boolean;
   targetLang?: string;
+  provider?: string;
+  maxCount?: number;
 }
 
 // Event handlers
@@ -158,6 +186,19 @@ function onTranslationSettingsChanged(e: Event): void {
     // Re-setup observer if needed
     if (enabled && listRef.value) {
       setupIntersectionObserver(listRef.value, store.articles);
+    }
+  }
+}
+
+function onLabelSettingsChanged(e: Event): void {
+  const customEvent = e as CustomEvent<CustomEventDetail>;
+  const { enabled, provider, maxCount } = customEvent.detail;
+  if (enabled !== undefined && provider && maxCount !== undefined) {
+    handleLabelSettingsChange(enabled, provider, maxCount);
+
+    // Re-setup observer if needed
+    if (enabled && listRef.value) {
+      setupLabelObserver(listRef.value, store.articles);
     }
   }
 }
@@ -192,6 +233,12 @@ function selectArticle(article: Article): void {
         console.error('Error marking as read:', e);
       });
   }
+}
+
+// Observe article for both translation and labels
+function observeArticleElement(el: Element | null): void {
+  observeArticle(el);
+  observeLabelArticle(el);
 }
 
 // Scrolling handler
@@ -333,7 +380,7 @@ async function clearReadLater(): Promise<void> {
         :isActive="store.currentArticleId === article.id"
         @click="selectArticle(article)"
         @contextmenu="(e) => showArticleContextMenu(e, article)"
-        @observeElement="observeArticle"
+        @observeElement="observeArticleElement"
       />
 
       <div

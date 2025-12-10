@@ -125,6 +125,7 @@ func main() {
 	apiMux.HandleFunc("/api/articles/summarize", func(w http.ResponseWriter, r *http.Request) { summary.HandleSummarizeArticle(h, w, r) })
 	apiMux.HandleFunc("/api/label/generate", func(w http.ResponseWriter, r *http.Request) { label.HandleGenerateLabels(h, w, r) })
 	apiMux.HandleFunc("/api/label/update", func(w http.ResponseWriter, r *http.Request) { label.HandleUpdateLabels(h, w, r) })
+	apiMux.HandleFunc("/api/label/clear", func(w http.ResponseWriter, r *http.Request) { label.HandleClearLabels(h, w, r) })
 	apiMux.HandleFunc("/api/settings", func(w http.ResponseWriter, r *http.Request) { settings.HandleSettings(h, w, r) })
 	apiMux.HandleFunc("/api/refresh", func(w http.ResponseWriter, r *http.Request) { article.HandleRefresh(h, w, r) })
 	apiMux.HandleFunc("/api/progress", func(w http.ResponseWriter, r *http.Request) { article.HandleProgress(h, w, r) })

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue';
-import { PhSpinnerGap, PhTranslate, PhTag } from '@phosphor-icons/vue';
+import { computed, ref, onMounted, watch } from 'vue';
+import { PhSpinnerGap, PhTranslate } from '@phosphor-icons/vue';
 import type { Article } from '@/types/models';
 import { formatDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
@@ -17,7 +17,7 @@ interface Props {
 const props = defineProps<Props>();
 
 const { t } = useI18n();
-const { isGeneratingLabels, generateLabels, parseLabels } = useArticleLabels();
+const { parseLabels } = useArticleLabels();
 
 const labelEnabled = ref(false);
 const currentLabels = ref<string[]>([]);
@@ -43,19 +43,13 @@ onMounted(async () => {
   }
 });
 
-async function handleGenerateLabels() {
-  try {
-    const labels = await generateLabels(props.article.id);
-    currentLabels.value = labels;
-    // Emit event to parent to update article data instead of mutating prop directly
-    // Note: For now, we just update the local state. Parent component refresh will sync data.
-    window.showToast(t('generateLabels') + ' - ' + t('success'), 'success');
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error('Failed to generate labels:', error);
-    window.showToast(message || t('generateLabels') + ' - ' + t('failed'), 'error');
+// Watch for label changes from auto-generation
+watch(
+  () => props.article.labels,
+  (newLabels) => {
+    currentLabels.value = parseLabels(newLabels);
   }
-}
+);
 </script>
 
 <template>
@@ -92,38 +86,11 @@ async function handleGenerateLabels() {
   </div>
 
   <!-- Labels Section -->
-  <div v-if="labelEnabled" class="mb-4 flex flex-wrap items-center gap-2">
+  <div v-if="labelEnabled && currentLabels.length > 0" class="mb-4 flex flex-wrap items-center gap-2">
     <ArticleLabels
-      v-if="currentLabels.length > 0"
       :labelsJson="JSON.stringify(currentLabels)"
       :maxDisplay="10"
       size="md"
     />
-    <button
-      @click="handleGenerateLabels"
-      :disabled="isGeneratingLabels"
-      class="label-generate-btn"
-      :class="{ loading: isGeneratingLabels }"
-    >
-      <PhSpinnerGap v-if="isGeneratingLabels" :size="14" class="animate-spin" />
-      <PhTag v-else :size="14" />
-      <span class="text-xs">{{
-        isGeneratingLabels ? t('generatingLabels') : t('generateLabels')
-      }}</span>
-    </button>
   </div>
 </template>
-
-<style scoped>
-.label-generate-btn {
-  @apply flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-border bg-bg-secondary text-text-secondary hover:bg-bg-tertiary hover:border-accent transition-all;
-}
-
-.label-generate-btn:disabled {
-  @apply opacity-70 cursor-not-allowed;
-}
-
-.label-generate-btn.loading {
-  @apply pointer-events-none;
-}
-</style>
