@@ -53,6 +53,7 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 		proxyUsername, _ := h.DB.GetSetting("proxy_username")
 		proxyPassword, _ := h.DB.GetSetting("proxy_password")
 		googleTranslateEndpoint, _ := h.DB.GetSetting("google_translate_endpoint")
+		showArticlePreviewImages, _ := h.DB.GetSetting("show_article_preview_images")
 		json.NewEncoder(w).Encode(map[string]string{
 			"update_interval":          interval,
 			"refresh_mode":             refreshMode,
@@ -91,9 +92,10 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 			"proxy_type":               proxyType,
 			"proxy_host":                proxyHost,
 			"proxy_port":                proxyPort,
-			"proxy_username":            proxyUsername,
-			"proxy_password":            proxyPassword,
-			"google_translate_endpoint": googleTranslateEndpoint,
+			"proxy_username":              proxyUsername,
+			"proxy_password":              proxyPassword,
+			"google_translate_endpoint":   googleTranslateEndpoint,
+			"show_article_preview_images": showArticlePreviewImages,
 		})
 	case http.MethodPost:
 		var req struct {
@@ -133,9 +135,10 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 			ProxyType             string `json:"proxy_type"`
 			ProxyHost             string `json:"proxy_host"`
 			ProxyPort               string `json:"proxy_port"`
-			ProxyUsername           string `json:"proxy_username"`
-			ProxyPassword           string `json:"proxy_password"`
-			GoogleTranslateEndpoint string `json:"google_translate_endpoint"`
+			ProxyUsername              string `json:"proxy_username"`
+			ProxyPassword              string `json:"proxy_password"`
+			GoogleTranslateEndpoint    string `json:"google_translate_endpoint"`
+			ShowArticlePreviewImages   string `json:"show_article_preview_images"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -243,6 +246,10 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 
 		// Always update google_translate_endpoint as it might be reset to default
 		h.DB.SetSetting("google_translate_endpoint", req.GoogleTranslateEndpoint)
+
+		if req.ShowArticlePreviewImages != "" {
+			h.DB.SetSetting("show_article_preview_images", req.ShowArticlePreviewImages)
+		}
 
 		if req.StartupOnBoot != "" {
 			// Get current value to check if it changed

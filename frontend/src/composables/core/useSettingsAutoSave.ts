@@ -137,6 +137,9 @@ export function useSettingsAutoSave(settings: Ref<SettingsData>) {
           proxy_password: settings.value.proxy_password ?? settingsDefaults.proxy_password,
           google_translate_endpoint:
             settings.value.google_translate_endpoint ?? settingsDefaults.google_translate_endpoint,
+          show_article_preview_images: (
+            settings.value.show_article_preview_images ?? settingsDefaults.show_article_preview_images
+          ).toString(),
         }),
       });
 

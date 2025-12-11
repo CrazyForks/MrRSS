@@ -22,12 +22,18 @@ const emit = defineEmits<{
 const { t, locale } = useI18n();
 
 const mediaCacheEnabled = ref(false);
+const showPreviewImages = ref(true);
+
 const imageUrl = computed(() => {
   if (!props.article.image_url) return '';
   if (mediaCacheEnabled.value) {
     return getProxiedMediaUrl(props.article.image_url, props.article.url);
   }
   return props.article.image_url;
+});
+
+const shouldShowImage = computed(() => {
+  return showPreviewImages.value && props.article.image_url;
 });
 
 function formatDate(dateStr: string): string {
@@ -39,8 +45,19 @@ function handleImageError(event: Event) {
   target.style.display = 'none';
 }
 
+async function loadSettings() {
+  try {
+    const res = await fetch('/api/settings');
+    const data = await res.json();
+    showPreviewImages.value = data.show_article_preview_images === 'true';
+  } catch (e) {
+    console.error('Error loading settings:', e);
+  }
+}
+
 onMounted(async () => {
   mediaCacheEnabled.value = await isMediaCacheEnabled();
+  await loadSettings();
 });
 </script>
 
@@ -60,7 +77,7 @@ onMounted(async () => {
     ]"
   >
     <img
-      v-if="article.image_url"
+      v-if="shouldShowImage"
       :src="imageUrl"
       class="w-16 h-12 sm:w-20 sm:h-[60px] object-cover rounded bg-bg-tertiary shrink-0 border border-border"
       @error="handleImageError"

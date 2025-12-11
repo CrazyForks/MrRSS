@@ -54,6 +54,7 @@ type Defaults struct {
 	Rules                   string `json:"rules"`
 	LastArticleUpdate       string `json:"last_article_update"`
 	GoogleTranslateEndpoint string `json:"google_translate_endpoint"`
+	ShowArticlePreviewImages bool  `json:"show_article_preview_images"`
 }
 
 var defaults Defaults
@@ -152,6 +153,8 @@ func GetString(key string) string {
 		return defaults.LastArticleUpdate
 	case "google_translate_endpoint":
 		return defaults.GoogleTranslateEndpoint
+	case "show_article_preview_images":
+		return strconv.FormatBool(defaults.ShowArticlePreviewImages)
 	default:
 		return ""
 	}

@@ -171,9 +171,31 @@ export function useArticleDetail() {
     }
   }
 
+  // Unwrap images from hyperlinks
+  // This ensures images can be clicked directly without triggering link navigation
+  function unwrapImagesFromLinks() {
+    const links = document.querySelectorAll<HTMLAnchorElement>('.prose a');
+    links.forEach((link) => {
+      const images = link.querySelectorAll('img');
+      if (images.length > 0) {
+        // This link contains one or more images
+        // Extract all child nodes from the link
+        const fragment = document.createDocumentFragment();
+        while (link.firstChild) {
+          fragment.appendChild(link.firstChild);
+        }
+        // Replace the link with its contents
+        link.parentNode?.replaceChild(fragment, link);
+      }
+    });
+  }
+
   // Attach event listeners to images in rendered content
   // Can be called multiple times (e.g., after translations modify the DOM)
   function attachImageEventListeners() {
+    // First, unwrap any images that are inside hyperlinks
+    unwrapImagesFromLinks();
+
     // Remove any existing listeners by cloning images (to clear all event listeners)
     const images = document.querySelectorAll<HTMLImageElement>('.prose img');
     images.forEach((img) => {
