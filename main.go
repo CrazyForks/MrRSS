@@ -8,12 +8,14 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/logger"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"MrRSS/internal/database"
 	"MrRSS/internal/feed"
@@ -30,11 +32,15 @@ import (
 	translationhandlers "MrRSS/internal/handlers/translation"
 	update "MrRSS/internal/handlers/update"
 	"MrRSS/internal/translation"
+	"MrRSS/internal/tray"
 	"MrRSS/internal/utils"
 )
 
 //go:embed frontend/dist/*
 var frontendFiles embed.FS
+
+//go:embed build/appicon.png
+var trayIcon []byte
 
 type CombinedHandler struct {
 	apiMux     *http.ServeMux
@@ -99,6 +105,8 @@ func main() {
 	translator := translation.NewDynamicTranslator(db)
 	fetcher := feed.NewFetcher(db, translator)
 	h := handlers.NewHandler(db, fetcher, translator)
+	trayManager := tray.NewManager(h, trayIcon)
+	var quitRequested atomic.Bool
 
 	// API Routes
 	log.Println("Setting up API routes...")
@@ -162,6 +170,19 @@ func main() {
 		fileServer: fileServer,
 	}
 
+	startTray := func(ctx context.Context) {
+		if trayManager == nil || trayManager.IsRunning() {
+			return
+		}
+		trayManager.Start(ctx, func() {
+			quitRequested.Store(true)
+			runtime.Quit(ctx)
+		}, func() {
+			runtime.WindowShow(ctx)
+			runtime.WindowUnminimise(ctx)
+		})
+	}
+
 	// Start background scheduler
 	log.Println("Starting background scheduler...")
 	bgCtx, bgCancel := context.WithCancel(context.Background())
@@ -180,6 +201,10 @@ func main() {
 		BackgroundColour: &options.RGBA{R: 255, G: 255, B: 255, A: 1},
 		OnShutdown: func(ctx context.Context) {
 			log.Println("Shutting down...")
+
+			if trayManager != nil {
+				trayManager.Stop()
+			}
 
 			// Stop background tasks first
 			bgCancel()
@@ -205,12 +230,35 @@ func main() {
 		OnStartup: func(ctx context.Context) {
 			log.Println("App started")
 
+			closeToTraySetting, err := db.GetSetting("close_to_tray")
+			if err == nil && closeToTraySetting == "true" {
+				startTray(ctx)
+			}
+
 			// Start background scheduler after a longer delay to allow UI to show first
 			go func() {
 				time.Sleep(5 * time.Second)
 				log.Println("Starting background scheduler...")
 				h.StartBackgroundScheduler(bgCtx)
 			}()
+		},
+		OnBeforeClose: func(ctx context.Context) bool {
+			if quitRequested.Load() {
+				return false
+			}
+
+			closeToTraySetting, err := db.GetSetting("close_to_tray")
+			if err == nil && closeToTraySetting == "true" {
+				startTray(ctx)
+				if trayManager != nil && trayManager.IsRunning() {
+					runtime.WindowHide(ctx)
+				} else {
+					runtime.WindowMinimise(ctx)
+				}
+				return true
+			}
+
+			return false
 		},
 	})
 
