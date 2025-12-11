@@ -152,7 +152,6 @@ const zh: TranslationMessages = {
   maxArticleAge: '最大文章保留天数',
   maxArticleAgeDesc: '删除超过此天数的旧文章（收藏文章除外）',
   mediaCache: '媒体缓存',
-  mediaCacheDesc: '缓存图片和视频以绕过防盗链限制',
   mediaCacheEnabled: '启用媒体缓存',
   mediaCacheEnabledDesc: '本地缓存媒体文件以避免防盗链保护导致的链接失效',
   mediaCacheMaxSize: '最大缓存大小',

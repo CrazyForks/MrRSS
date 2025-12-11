@@ -137,7 +137,6 @@ export interface TranslationMessages {
   maxArticleAge: string;
   maxArticleAgeDesc: string;
   mediaCache: string;
-  mediaCacheDesc: string;
   mediaCacheEnabled: string;
   mediaCacheEnabledDesc: string;
   mediaCacheMaxSize: string;

@@ -155,7 +155,6 @@ const en: TranslationMessages = {
   maxArticleAge: 'Max Article Age',
   maxArticleAgeDesc: 'Delete articles older than this many days (except favorites)',
   mediaCache: 'Media Cache',
-  mediaCacheDesc: 'Cache images and videos to bypass anti-hotlinking restrictions',
   mediaCacheEnabled: 'Enable Media Cache',
   mediaCacheEnabledDesc:
     'Cache media files locally to avoid broken links from anti-hotlinking protection',

@@ -18,7 +18,7 @@ interface Props {
   settings: SettingsData;
 }
 
-defineProps<Props>();
+const { settings } = defineProps<Props>();
 
 const mediaCacheSize = ref<number>(0);
 const isCleaningCache = ref(false);
@@ -150,19 +150,6 @@ onMounted(() => {
         </div>
       </div>
       <input type="checkbox" v-model="settings.show_hidden_articles" class="toggle" />
-    </div>
-  </div>
-
-  <!-- Media Cache Section -->
-  <div class="setting-group mt-4 sm:mt-6">
-    <label
-      class="font-semibold mb-2 sm:mb-3 text-text-secondary uppercase text-xs tracking-wider flex items-center gap-2"
-    >
-      <PhImage :size="14" class="sm:w-4 sm:h-4" />
-      {{ t('mediaCache') }}
-    </label>
-    <div class="text-xs text-text-secondary mb-2 sm:mb-3">
-      {{ t('mediaCacheDesc') }}
     </div>
 
     <div class="setting-item">
