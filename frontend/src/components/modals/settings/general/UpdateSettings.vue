@@ -98,7 +98,7 @@ function formatLastUpdate(timestamp: string): string {
       <input type="checkbox" v-model="settings.startup_on_boot" class="toggle" />
     </div>
 
-    <div class="setting-item">
+    <div class="setting-item mt-2 sm:mt-3">
       <div class="flex-1 flex items-center sm:items-start gap-2 sm:gap-3 min-w-0">
         <PhArchiveTray :size="20" class="text-text-secondary mt-0.5 shrink-0 sm:w-6 sm:h-6" />
         <div class="flex-1 min-w-0">

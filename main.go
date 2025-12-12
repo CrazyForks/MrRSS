@@ -42,6 +42,14 @@ var frontendFiles embed.FS
 //go:embed build/appicon.png
 var trayIcon []byte
 
+type windowState struct {
+	width  int
+	height int
+	x      int
+	y      int
+	valid  atomic.Bool
+}
+
 type CombinedHandler struct {
 	apiMux     *http.ServeMux
 	fileServer http.Handler
@@ -107,6 +115,7 @@ func main() {
 	h := handlers.NewHandler(db, fetcher, translator)
 	trayManager := tray.NewManager(h, trayIcon)
 	var quitRequested atomic.Bool
+	var lastWindowState windowState
 
 	// API Routes
 	log.Println("Setting up API routes...")
@@ -183,9 +192,29 @@ func main() {
 			quitRequested.Store(true)
 			runtime.Quit(ctx)
 		}, func() {
+			if lastWindowState.valid.Load() {
+				runtime.WindowSetSize(ctx, lastWindowState.width, lastWindowState.height)
+				runtime.WindowSetPosition(ctx, lastWindowState.x, lastWindowState.y)
+			}
 			runtime.WindowShow(ctx)
 			runtime.WindowUnminimise(ctx)
 		})
+	}
+
+	storeWindowState := func(ctx context.Context) {
+		if ctx == nil {
+			return
+		}
+		if size, err := runtime.WindowGetSize(ctx); err == nil {
+			lastWindowState.width = size.W
+			lastWindowState.height = size.H
+			lastWindowState.valid.Store(true)
+		}
+		if pos, err := runtime.WindowGetPosition(ctx); err == nil {
+			lastWindowState.x = pos.X
+			lastWindowState.y = pos.Y
+			lastWindowState.valid.Store(true)
+		}
 	}
 
 	// Start background scheduler
@@ -252,6 +281,7 @@ func main() {
 			}
 
 			if shouldCloseToTray() {
+				storeWindowState(ctx)
 				startTray(ctx)
 				if trayManager != nil && trayManager.IsRunning() {
 					runtime.WindowHide(ctx)

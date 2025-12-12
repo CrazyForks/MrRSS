@@ -1,4 +1,4 @@
-//go:build windows
+//go:build windows || linux || darwin
 
 package tray
 
@@ -19,6 +19,8 @@ type Manager struct {
 	running atomic.Bool
 	stopCh  chan struct{}
 	mu      sync.Mutex
+
+	lang string
 }
 
 // NewManager creates a new tray manager for supported platforms.
@@ -42,6 +44,12 @@ func (m *Manager) Start(ctx context.Context, onQuit func(), onShow func()) {
 	m.running.Store(true)
 	m.mu.Unlock()
 
+	if m.handler != nil && m.handler.DB != nil {
+		if lang, err := m.handler.DB.GetSetting("language"); err == nil && lang != "" {
+			m.lang = lang
+		}
+	}
+
 	go systray.Run(func() {
 		m.run(ctx, onQuit, onShow)
 	}, func() {
@@ -51,15 +59,17 @@ func (m *Manager) Start(ctx context.Context, onQuit func(), onShow func()) {
 
 func (m *Manager) run(ctx context.Context, onQuit func(), onShow func()) {
 	if len(m.icon) > 0 {
-		systray.SetIcon(m.icon)
+		systray.SetTemplateIcon(m.icon, m.icon)
 	}
-	systray.SetTitle("MrRSS")
-	systray.SetTooltip("MrRSS")
+	labels := m.getLabels()
 
-	showItem := systray.AddMenuItem("Show MrRSS", "Restore window")
-	refreshItem := systray.AddMenuItem("Refresh now", "Refresh all feeds")
+	systray.SetTitle(labels.title)
+	systray.SetTooltip(labels.tooltip)
+
+	showItem := systray.AddMenuItem(labels.show, labels.tooltip)
+	refreshItem := systray.AddMenuItem(labels.refresh, labels.refreshTooltip)
 	systray.AddSeparator()
-	quitItem := systray.AddMenuItem("Quit", "Quit MrRSS")
+	quitItem := systray.AddMenuItem(labels.quit, labels.quitTooltip)
 
 	go func() {
 		for {
@@ -85,6 +95,42 @@ func (m *Manager) run(ctx context.Context, onQuit func(), onShow func()) {
 			}
 		}
 	}()
+}
+
+type trayLabels struct {
+	title          string
+	tooltip        string
+	show           string
+	refresh        string
+	refreshTooltip string
+	quit           string
+	quitTooltip    string
+}
+
+func (m *Manager) getLabels() trayLabels {
+	lang := m.lang
+	switch lang {
+	case "zh-CN", "zh", "zh-cn":
+		return trayLabels{
+			title:          "MrRSS",
+			tooltip:        "MrRSS",
+			show:           "显示 MrRSS",
+			refresh:        "立即刷新",
+			refreshTooltip: "刷新所有订阅",
+			quit:           "退出",
+			quitTooltip:    "退出 MrRSS",
+		}
+	default:
+		return trayLabels{
+			title:          "MrRSS",
+			tooltip:        "MrRSS",
+			show:           "Show MrRSS",
+			refresh:        "Refresh now",
+			refreshTooltip: "Refresh all feeds",
+			quit:           "Quit",
+			quitTooltip:    "Quit MrRSS",
+		}
+	}
 }
 
 // Stop tears down the system tray if it is running.
