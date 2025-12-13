@@ -5,6 +5,16 @@ All notable changes to MrRSS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.17] - 2025-12-13
+
+### Added
+
+- Supported upgrade in portable mode.
+
+### Fixed
+
+- Fixed the issue where settings can not be saved and applied by downgrade TailwindCSS version.
+
 ## [1.2.16] - 2025-12-13
 
 ### Added
