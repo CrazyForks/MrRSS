@@ -325,11 +325,51 @@ func main() {
 		OnStartup: func(ctx context.Context) {
 			log.Println("App started")
 
-			// Ensure window is visible and properly sized on startup
-			runtime.WindowSetSize(ctx, 1024, 768)
-			runtime.WindowCenter(ctx)
+			// Try to restore window state from database
+			restoredFromDB := false
+			if x, err := db.GetSetting("window_x"); err == nil && x != "" {
+				if y, err := db.GetSetting("window_y"); err == nil && y != "" {
+					if width, err := db.GetSetting("window_width"); err == nil && width != "" {
+						if height, err := db.GetSetting("window_height"); err == nil && height != "" {
+							// Parse values
+							var xInt, yInt, widthInt, heightInt int
+							if _, err := fmt.Sscanf(x, "%d", &xInt); err == nil {
+								if _, err := fmt.Sscanf(y, "%d", &yInt); err == nil {
+									if _, err := fmt.Sscanf(width, "%d", &widthInt); err == nil {
+										if _, err := fmt.Sscanf(height, "%d", &heightInt); err == nil {
+											// Validate values
+											if widthInt >= 400 && heightInt >= 300 && widthInt <= 4000 && heightInt <= 3000 {
+												if xInt > -1000 && xInt < 3000 && yInt > -1000 && yInt < 3000 {
+													log.Printf("Restoring window state from database: x=%d, y=%d, width=%d, height=%d", xInt, yInt, widthInt, heightInt)
+													runtime.WindowSetSize(ctx, widthInt, heightInt)
+													runtime.WindowSetPosition(ctx, xInt, yInt)
+													restoredFromDB = true
+													// Store in memory for minimize-restore
+													lastWindowState.width = widthInt
+													lastWindowState.height = heightInt
+													lastWindowState.x = xInt
+													lastWindowState.y = yInt
+													lastWindowState.valid.Store(true)
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
+			if !restoredFromDB {
+				// Use default size if restoration failed
+				log.Println("No saved window state found, using defaults")
+				runtime.WindowSetSize(ctx, 1024, 768)
+				runtime.WindowCenter(ctx)
+			}
+
 			runtime.WindowShow(ctx)
-			log.Println("Window initialized with default size and centered")
+			log.Println("Window initialized")
 
 			if shouldCloseToTray() {
 				startTray(ctx)

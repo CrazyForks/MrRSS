@@ -15,13 +15,10 @@ export function useWindowState() {
   /**
    * Load and restore window state from database
    *
-   * NOTE: Window state restoration is currently disabled because:
-   * 1. MrRSS uses HTTP API instead of Wails bindings (-skipbindings flag)
-   * 2. Wails runtime bindings are not available in this mode
-   * 3. Window position/size is managed by Wails itself in main.go
-   *
-   * The window state is still saved for potential future use or
-   * for reference, but not actively restored on startup.
+   * NOTE: Actual window restoration happens in main.go during OnStartup.
+   * This frontend function is kept for API compatibility and logging.
+   * The window state is restored by the Go backend which has access to
+   * Wails runtime context.
    */
   async function restoreWindowState() {
     try {
@@ -34,10 +31,11 @@ export function useWindowState() {
       }
 
       const data = await response.json();
-      console.log('Window state loaded (not restored):', data);
-
-      // We don't actually restore the state because Wails bindings are not available
-      // The window will use the default size/position defined in main.go
+      if (data.width && data.height) {
+        console.log('Window state loaded from database:', data);
+      } else {
+        console.log('No saved window state found');
+      }
     } catch (error) {
       console.error('Error loading window state:', error);
     } finally {
@@ -50,14 +48,6 @@ export function useWindowState() {
 
   /**
    * Save current window state to database
-   *
-   * NOTE: Window state saving is currently disabled because:
-   * 1. MrRSS uses HTTP API instead of Wails bindings (-skipbindings flag)
-   * 2. Wails runtime bindings (WindowGetPosition, WindowGetSize, etc.) are not available
-   * 3. Window state is managed by Wails itself via runtime.WindowSetPosition/Size in main.go
-   *
-   * If window state persistence is needed in the future, it should be implemented
-   * via backend Go code that can access the Wails runtime context.
    */
   async function saveWindowState() {
     // Don't save while we're restoring state
@@ -65,30 +55,36 @@ export function useWindowState() {
       return;
     }
 
-    // Disabled: Cannot access Wails runtime bindings in -skipbindings mode
-    // The code below would fail because WindowGetPosition, WindowGetSize, etc. are not available
-
-    /*
     try {
+      // Use browser window properties to get approximate state
+      // Note: These values may not be 100% accurate due to browser limitations,
+      // but they provide a reasonable approximation for window state persistence
       const state: WindowState = {
         x: window.screenX || 0,
         y: window.screenY || 0,
         width: window.innerWidth || 1024,
         height: window.innerHeight || 768,
-        maximized: false,
+        maximized: false, // Browser can't reliably detect maximized state
       };
 
-      await fetch('/api/window/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(state),
-      });
+      // Only save if values are reasonable
+      if (
+        state.width >= 400 &&
+        state.height >= 300 &&
+        state.width <= 4000 &&
+        state.height <= 3000
+      ) {
+        await fetch('/api/window/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(state),
+        });
 
-      console.log('Window state saved:', state);
+        console.log('Window state saved:', state);
+      }
     } catch (error) {
       console.error('Error saving window state:', error);
     }
-    */
   }
 
   /**
@@ -140,22 +136,25 @@ export function useWindowState() {
 
   /**
    * Initialize window state management
-   *
-   * Currently minimal because window state persistence is disabled.
-   * This function is kept for API compatibility and may be enhanced
-   * in the future if window state management is re-implemented.
    */
   function init() {
-    onMounted(async () => {
-      // Just log that we're initialized
-      console.log('Window state management initialized (persistence disabled)');
+    let cleanup: (() => void) | null = null;
 
-      // Load state for logging/reference only
+    onMounted(async () => {
+      console.log('Window state management initialized');
+
+      // Load state for logging
       await restoreWindowState();
+
+      // Setup event listeners to save window state changes
+      cleanup = setupListeners();
     });
 
     onUnmounted(() => {
-      // Cleanup if needed
+      // Cleanup event listeners
+      if (cleanup) {
+        cleanup();
+      }
       if (saveTimeout) {
         clearTimeout(saveTimeout);
       }
