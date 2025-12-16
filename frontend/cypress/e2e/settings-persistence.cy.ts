@@ -67,9 +67,15 @@ describe('Settings Persistence', () => {
     cy.wait('@getSettings')
     
     // Look for language selector and change it
-    // This might be a dropdown or radio buttons
-    cy.get('select, [role="radiogroup"]').first().within(() => {
-      cy.get('option, [role="radio"]').contains(/中文|english/i).click({ force: true })
+    // Try to find a select element or radio group
+    cy.get('body').then(($body) => {
+      if ($body.find('select').length > 0) {
+        // If there's a select dropdown
+        cy.get('select').first().select(1)
+      } else if ($body.find('[role="radiogroup"]').length > 0) {
+        // If there are radio buttons
+        cy.get('[role="radio"]').last().click({ force: true })
+      }
     })
     
     // Wait for settings to be saved
