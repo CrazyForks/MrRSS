@@ -11,12 +11,12 @@ updates:
       - "dependencies"
       - "go"
     commit-message:
-      prefix: "chore(go-deps)"
+      prefix: "chore(go-deps:backend)"
       include: "scope"
 
-  # NPM dependencies
+  # NPM dependencies for frontend
   - package-ecosystem: "npm"
-    directory: ["/frontend", "/backend"]
+    directory: "/frontend"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -25,7 +25,21 @@ updates:
       - "dependencies"
       - "npm"
     commit-message:
-      prefix: "chore(npm-deps)"
+      prefix: "chore(npm-deps:frontend)"
+      include: "scope"
+
+  # NPM dependencies for website
+  - package-ecosystem: "npm"
+    directory: "/website"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "npm"
+    commit-message:
+      prefix: "chore(npm-deps:website)"
       include: "scope"
 
   # GitHub Actions
