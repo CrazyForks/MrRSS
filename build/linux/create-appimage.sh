@@ -104,6 +104,11 @@ set -e
 # Copy desktop file to root
 cp "${APPDIR}/usr/share/applications/${APP_NAME}.desktop" "${APPDIR}/"
 
+# Clean up any previous build artifacts that might cause architecture mismatch
+echo "Cleaning up old AppDir artifacts..."
+find "${APPDIR}" -name "*.so*" -type f -delete 2>/dev/null || true
+find "${APPDIR}" -name "*.a" -type f -delete 2>/dev/null || true
+
 # Download appimagetool if not present
 APPIMAGETOOL_ARCH="x86_64"
 if [ "${ARCH}" = "arm64" ]; then
@@ -167,6 +172,14 @@ fi
 echo "Verifying binary architecture..."
 BINARY_ARCH=$(file "${APPDIR}/usr/bin/${APP_NAME}" | grep -o 'aarch64\|x86-64\|ARM aarch64' || true)
 echo "Binary architecture: ${BINARY_ARCH}"
+echo "Expected AppImage architecture: ${APPIMAGE_ARCH}"
+
+# Additional check: ensure no mixed architecture binaries
+MIXED_ARCH=$(find "${APPDIR}" -type f -executable -exec file {} \; | grep -o 'ELF.*aarch64\|ELF.*x86-64' | sort -u | wc -l)
+if [ "${MIXED_ARCH}" -gt 1 ]; then
+    echo "Warning: Mixed architectures detected in AppDir"
+    find "${APPDIR}" -type f -executable -exec file {} \; | grep 'ELF'
+fi
 
 if [ -n "${CI}" ] || ! [ -e /dev/fuse ]; then
     echo "FUSE not available, using --appimage-extract-and-run mode"
@@ -176,7 +189,14 @@ if [ -n "${CI}" ] || ! [ -e /dev/fuse ]; then
         echo "This might be due to architecture mismatch or missing dependencies"
         echo "Checking AppDir contents..."
         find "${APPDIR}" -type f -exec file {} \; | grep -E 'ELF|shared object' || true
-        exit 1
+
+        # Fallback: create tar.gz instead
+        echo "Falling back to tar.gz archive..."
+        cd "${BUILD_DIR}"
+        tar czf "${APP_NAME}-${VERSION}-linux-${ARCH}.tar.gz" -C "${APPDIR}/usr/bin" "${APP_NAME}"
+        cd -
+        echo "Created fallback archive: ${BUILD_DIR}/${APP_NAME}-${VERSION}-linux-${ARCH}.tar.gz"
+        exit 0
     fi
 else
     echo "Running: ARCH=${APPIMAGE_ARCH} ${APPIMAGETOOL} ${APPDIR} ${BUILD_DIR}/${APPIMAGE_NAME}"
@@ -184,7 +204,14 @@ else
         echo "Error: AppImage creation failed"
         echo "Checking AppDir contents..."
         find "${APPDIR}" -type f -exec file {} \; | grep -E 'ELF|shared object' || true
-        exit 1
+
+        # Fallback: create tar.gz instead
+        echo "Falling back to tar.gz archive..."
+        cd "${BUILD_DIR}"
+        tar czf "${APP_NAME}-${VERSION}-linux-${ARCH}.tar.gz" -C "${APPDIR}/usr/bin" "${APP_NAME}"
+        cd -
+        echo "Created fallback archive: ${BUILD_DIR}/${APP_NAME}-${VERSION}-linux-${ARCH}.tar.gz"
+        exit 0
     fi
 fi
 

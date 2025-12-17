@@ -23,14 +23,29 @@ tasks:
             ref: .DEV
       - task: common:generate:icons
     cmds:
-      - go build {{.BUILD_FLAGS}} -o {{.BIN_DIR}}/{{.APP_NAME}}
+      # Check if building universal binary
+      - |
+        if [ "{{.ARCH}}" = "universal" ]; then
+          echo "Building universal binary..."
+          # Build for amd64
+          GOOS=darwin GOARCH=amd64 CGO_ENABLED=1 go build {{.BUILD_FLAGS}} -o {{.BIN_DIR}}/{{.APP_NAME}}-amd64
+          # Build for arm64
+          GOOS=darwin GOARCH=arm64 CGO_ENABLED=1 go build {{.BUILD_FLAGS}} -o {{.BIN_DIR}}/{{.APP_NAME}}-arm64
+          # Merge with lipo
+          lipo -create -output {{.BIN_DIR}}/{{.APP_NAME}} {{.BIN_DIR}}/{{.APP_NAME}}-amd64 {{.BIN_DIR}}/{{.APP_NAME}}-arm64
+          # Clean up intermediate files
+          rm -f {{.BIN_DIR}}/{{.APP_NAME}}-amd64 {{.BIN_DIR}}/{{.APP_NAME}}-arm64
+        else
+          # Build for specific architecture
+          go build {{.BUILD_FLAGS}} -o {{.BIN_DIR}}/{{.APP_NAME}}
+        fi
       - task: create:app:bundle
     vars:
       BUILD_FLAGS: '{{if eq .DEV "true"}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production -trimpath -buildvcs=false -ldflags="-w -s"{{end}}'
     env:
       GOOS: darwin
       CGO_ENABLED: 1
-      GOARCH: '{{.ARCH | default ARCH}}'
+      GOARCH: '{{if ne .ARCH "universal"}}{{.ARCH | default ARCH}}{{else}}{{end}}'
 
   create:app:bundle:
     summary: Creates a macOS .app bundle

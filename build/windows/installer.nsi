@@ -10,6 +10,7 @@
 
 !define APP_NAME "MrRSS"
 !define APP_VERSION "1.3.0-alpha.1"
+!define APP_VERSION_NUMERIC "1.3.0.1"  ; NSIS requires X.X.X.X format
 !define APP_PUBLISHER "Ch3nyang"
 !define APP_URL "https://github.com/WCY-dt/MrRSS"
 !define APP_DESCRIPTION "A Modern, Cross-Platform Desktop RSS Reader"
@@ -60,7 +61,7 @@ RequestExecutionLevel admin
 !insertmacro MUI_LANGUAGE "English"
 
 ; Version Information
-VIProductVersion "${APP_VERSION}.0"
+VIProductVersion "${APP_VERSION_NUMERIC}"
 VIAddVersionKey "ProductName" "${APP_NAME}"
 VIAddVersionKey "FileDescription" "${APP_DESCRIPTION}"
 VIAddVersionKey "FileVersion" "${APP_VERSION}"
