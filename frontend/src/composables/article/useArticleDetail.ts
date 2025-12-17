@@ -177,17 +177,35 @@ export function useArticleDetail() {
   function unwrapImagesFromLinks() {
     // Process all links in prose content (both main content and translations)
     const links = document.querySelectorAll<HTMLAnchorElement>('.prose a');
+    const linksToProcess: HTMLAnchorElement[] = [];
+    
+    // Collect links that contain images (check both direct children and nested)
     links.forEach((link) => {
       const images = link.querySelectorAll('img');
       if (images.length > 0) {
-        // This link contains one or more images
+        linksToProcess.push(link);
+      }
+    });
+    
+    // Process collected links
+    linksToProcess.forEach((link) => {
+      try {
+        // Check if parent exists and is valid
+        if (!link.parentNode) {
+          console.warn('Link has no parent node, skipping unwrap');
+          return;
+        }
+        
         // Extract all child nodes from the link
         const fragment = document.createDocumentFragment();
         while (link.firstChild) {
           fragment.appendChild(link.firstChild);
         }
+        
         // Replace the link with its contents
-        link.parentNode?.replaceChild(fragment, link);
+        link.parentNode.replaceChild(fragment, link);
+      } catch (error) {
+        console.error('Error unwrapping image from link:', error);
       }
     });
   }
@@ -198,58 +216,95 @@ export function useArticleDetail() {
     // First, unwrap any images that are inside hyperlinks
     unwrapImagesFromLinks();
 
-    // Remove any existing listeners by cloning images (to clear all event listeners)
+    // Get all images in prose content
     const images = document.querySelectorAll<HTMLImageElement>('.prose img');
+    
     images.forEach((img) => {
-      img.style.cursor = 'pointer';
-      // Remove old listeners by replacing with clone
-      const newImg = img.cloneNode(true) as HTMLImageElement;
-      img.parentNode?.replaceChild(newImg, img);
+      try {
+        // Verify the image has a valid parent
+        if (!img.parentNode) {
+          console.warn('Image has no parent node, skipping event attachment');
+          return;
+        }
+        
+        // Skip images that are very small (likely icons/emojis)
+        const isSmallIcon = img.height <= 24 && img.height > 0;
+        if (isSmallIcon) {
+          return;
+        }
+        
+        // Ensure the image and its parents can receive pointer events
+        img.style.cursor = 'pointer';
+        img.style.pointerEvents = 'auto';
+        
+        // Remove old listeners by replacing with clone
+        const newImg = img.cloneNode(true) as HTMLImageElement;
+        img.parentNode.replaceChild(newImg, img);
 
-      // Attach fresh event listeners to the new image element
-      newImg.style.cursor = 'pointer';
-      // Left click - open image viewer
-      newImg.addEventListener('click', (e: Event) => {
-        e.preventDefault();
-        e.stopPropagation(); // Prevent event bubbling to parent link elements
-        imageViewerSrc.value = newImg.src;
-        imageViewerAlt.value = newImg.alt || '';
-      });
-      // Right click - show context menu for saving
-      newImg.addEventListener('contextmenu', (e: MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation(); // Prevent event bubbling to parent link elements
-        // Use global context menu system
-        window.dispatchEvent(
-          new CustomEvent('open-context-menu', {
-            detail: {
-              x: e.clientX,
-              y: e.clientY,
-              items: [
-                {
-                  label: t('viewImage'),
-                  action: 'view',
-                  icon: 'PhMagnifyingGlassPlus',
+        // Ensure cloned image maintains pointer interaction styles
+        newImg.style.cursor = 'pointer';
+        newImg.style.pointerEvents = 'auto';
+        
+        // Left click - open image viewer
+        newImg.addEventListener('click', (e: Event) => {
+          e.preventDefault();
+          e.stopPropagation(); // Prevent event bubbling to parent elements
+          
+          // Verify image src exists
+          if (!newImg.src) {
+            console.warn('Image has no src, cannot open viewer');
+            return;
+          }
+          
+          imageViewerSrc.value = newImg.src;
+          imageViewerAlt.value = newImg.alt || '';
+        }, { capture: true }); // Use capture phase to ensure we get the event first
+        
+        // Right click - show context menu for saving
+        newImg.addEventListener('contextmenu', (e: MouseEvent) => {
+          e.preventDefault();
+          e.stopPropagation(); // Prevent event bubbling to parent elements
+          
+          // Verify image src exists
+          if (!newImg.src) {
+            console.warn('Image has no src, cannot show context menu');
+            return;
+          }
+          
+          // Use global context menu system
+          window.dispatchEvent(
+            new CustomEvent('open-context-menu', {
+              detail: {
+                x: e.clientX,
+                y: e.clientY,
+                items: [
+                  {
+                    label: t('viewImage'),
+                    action: 'view',
+                    icon: 'PhMagnifyingGlassPlus',
+                  },
+                  {
+                    label: t('downloadImage'),
+                    action: 'download',
+                    icon: 'PhDownloadSimple',
+                  },
+                ],
+                data: { src: newImg.src },
+                callback: (action: string, data: { src: string }) => {
+                  if (action === 'view') {
+                    imageViewerSrc.value = data.src;
+                    imageViewerAlt.value = '';
+                  } else if (action === 'download') {
+                    downloadImage(data.src);
+                  }
                 },
-                {
-                  label: t('downloadImage'),
-                  action: 'download',
-                  icon: 'PhDownloadSimple',
-                },
-              ],
-              data: { src: newImg.src },
-              callback: (action: string, data: { src: string }) => {
-                if (action === 'view') {
-                  imageViewerSrc.value = data.src;
-                  imageViewerAlt.value = '';
-                } else if (action === 'download') {
-                  downloadImage(data.src);
-                }
               },
-            },
-          })
-        );
-      });
+            })
+          );
+        }, { capture: true }); // Use capture phase to ensure we get the event first
+      } catch (error) {
+        console.error('Error attaching event listeners to image:', error);
+      }
     });
 
     // Also attach link event listeners (for text-only links after unwrapping)
@@ -263,25 +318,46 @@ export function useArticleDetail() {
     // At this point, all images have been unwrapped from links,
     // so any remaining links are text-only and should open in browser
     const links = document.querySelectorAll('.prose a');
+    
     links.forEach((link) => {
-      // Remove any existing listeners by cloning
-      const newLink = link.cloneNode(true) as HTMLAnchorElement;
-      link.parentNode?.replaceChild(newLink, link);
+      try {
+        // Verify the link has a valid parent
+        if (!link.parentNode) {
+          console.warn('Link has no parent node, skipping event attachment');
+          return;
+        }
+        
+        // Skip if link still contains images (shouldn't happen, but defensive)
+        if (link.querySelector('img')) {
+          console.warn('Link still contains images, skipping link handler');
+          return;
+        }
+        
+        // Remove any existing listeners by cloning
+        const newLink = link.cloneNode(true) as HTMLAnchorElement;
+        link.parentNode.replaceChild(newLink, link);
 
-      // Add fresh event listener
-      newLink.addEventListener(
-        'click',
-        (e: Event) => {
-          // Open in external browser
-          e.preventDefault();
-          e.stopPropagation();
-          const href = newLink.getAttribute('href');
-          if (href) {
-            BrowserOpenURL(href);
-          }
-        },
-        true
-      ); // Use capture phase to ensure our handler runs first
+        // Add fresh event listener
+        newLink.addEventListener(
+          'click',
+          (e: Event) => {
+            // Open in external browser
+            e.preventDefault();
+            e.stopPropagation();
+            const href = newLink.getAttribute('href');
+            if (href) {
+              try {
+                BrowserOpenURL(href);
+              } catch (error) {
+                console.error('Error opening URL:', href, error);
+              }
+            }
+          },
+          { capture: true } // Use capture phase to ensure our handler runs first
+        );
+      } catch (error) {
+        console.error('Error attaching event listeners to link:', error);
+      }
     });
   }
 
