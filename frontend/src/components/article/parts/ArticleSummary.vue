@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/* eslint-disable vue/no-v-html */
 import { ref, computed, watch, onUnmounted } from 'vue';
 import {
   PhTextAlignLeft,
@@ -221,14 +222,12 @@ function handleGenerateSummary() {
         </div>
 
         <!-- Show translated summary only when translation is enabled -->
-        <!-- eslint-disable-next-line vue/no-v-html -->
         <div
           v-if="translationEnabled && translatedSummaryHTML"
           class="text-sm text-text-primary leading-relaxed select-text prose prose-sm max-w-none"
           v-html="translatedSummaryHTML"
         ></div>
         <!-- Show original summary when no translation or as fallback -->
-        <!-- eslint-disable-next-line vue/no-v-html -->
         <div
           v-else
           class="text-sm text-text-primary leading-relaxed select-text prose prose-sm max-w-none"

@@ -21,6 +21,7 @@ The following changes may affect existing setups:
 - Supported displaying feeds that are refreshing in progress or waiting to refresh in the feed list.
 - Supported new chat session and viewing chat history in AI Chat feature. (#340)
 - Supported redering chat messages with markdown format in AI Chat feature. (#338)(#346)
+- Supported searching inside article content. (#361)
 
 ### Changed
 
@@ -44,6 +45,7 @@ The following changes may affect existing setups:
 - Fixed the issue where moving a feed removes advanced setting for that feed. (#356)
 - Fixed the issue where switching articles before summary generation completes causes incorrect summary display. (#365)
 - Fixed the issue where error messages when DATETIME is NULL. (#347)
+- Fixed the issue where clicking on blanke spaces can not cancel selected text in articles. (#360)
 
 ## [1.3.11] - 2025-12-26
 

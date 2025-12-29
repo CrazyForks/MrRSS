@@ -768,6 +768,9 @@ const zh: TranslationMessages = {
   youtubeVideo: 'YouTube 视频',
   zoomIn: '放大',
   zoomOut: '缩小',
+  findInPagePlaceholder: '在文章中查找...',
+  nextMatch: '下一个匹配',
+  previousMatch: '上一个匹配',
 };
 
 export default zh;

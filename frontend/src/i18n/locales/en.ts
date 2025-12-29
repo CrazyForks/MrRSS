@@ -773,6 +773,9 @@ const en: TranslationMessages = {
   youtubeVideo: 'YouTube Video',
   zoomIn: 'Zoom In',
   zoomOut: 'Zoom Out',
+  findInPagePlaceholder: 'Find in article...',
+  nextMatch: 'Next match',
+  previousMatch: 'Previous match',
 };
 
 export default en;

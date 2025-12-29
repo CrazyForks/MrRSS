@@ -473,6 +473,40 @@ async function reattachImageInteractions() {
   props.attachImageEventListeners();
 }
 
+// Clear text selection when clicking outside the selected content
+function handleContainerClick(event: MouseEvent) {
+  const selection = window.getSelection();
+  if (!selection || selection.toString().length === 0) return;
+
+  const target = event.target as HTMLElement;
+
+  // Don't clear if clicking on:
+  // - Links, buttons, or interactive elements
+  // - Inputs, textareas
+  // - Elements within the selection
+  const isInteractive =
+    target.tagName === 'A' ||
+    target.tagName === 'BUTTON' ||
+    target.tagName === 'INPUT' ||
+    target.tagName === 'TEXTAREA' ||
+    target.closest('a') !== null ||
+    target.closest('button') !== null;
+
+  if (isInteractive) return;
+
+  // Check if target is within the current selection
+  try {
+    if (selection.containsNode(target, true)) {
+      return;
+    }
+  } catch {
+    // containsNode can throw in some cases, ignore and proceed
+  }
+
+  // Clear the selection
+  selection.removeAllRanges();
+}
+
 // Handle auto show all content setting change
 function onAutoShowAllContentChanged(e: Event): void {
   const customEvent = e as CustomEvent<{ value: boolean }>;
@@ -636,7 +670,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="flex-1 overflow-y-auto bg-bg-primary p-3 sm:p-6">
+  <div class="flex-1 overflow-y-auto bg-bg-primary p-3 sm:p-6" @click="handleContainerClick">
     <div
       class="max-w-3xl mx-auto bg-bg-primary"
       :class="{ 'hide-translations': !showTranslations }"

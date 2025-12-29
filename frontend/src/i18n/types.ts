@@ -596,6 +596,9 @@ export interface TranslationMessages {
   youtubeVideo: string;
   zoomIn: string;
   zoomOut: string;
+  findInPagePlaceholder: string;
+  nextMatch: string;
+  previousMatch: string;
 }
 
 export type SupportedLocale = 'en-US' | 'zh-CN';

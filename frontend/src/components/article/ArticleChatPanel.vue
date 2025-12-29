@@ -1,4 +1,5 @@
 <script setup lang="ts">
+/* eslint-disable vue/no-v-html */
 import { ref, nextTick, computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
@@ -477,7 +478,6 @@ const currentSessionTitle = computed(() => {
                 <div class="whitespace-pre-wrap">{{ msg.thinking }}</div>
               </div>
               <!-- Message content with pre-rendered HTML from backend -->
-              <!-- eslint-disable-next-line vue/no-v-html -->
               <div
                 v-if="msg.role === 'assistant'"
                 class="prose prose-sm max-w-none"
