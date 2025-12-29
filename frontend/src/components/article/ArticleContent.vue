@@ -21,12 +21,17 @@ import {
 } from '@/composables/article/useContentTranslation';
 import { useSettings } from '@/composables/core/useSettings';
 import { useAppStore } from '@/stores/app';
+import { proxyImagesInHtml, isMediaCacheEnabled } from '@/utils/mediaProxy';
 import './ArticleContent.css';
 
 interface SummaryResult {
   summary: string;
+  html?: string;
   sentence_count: number;
   is_too_short: boolean;
+  limit_reached?: boolean;
+  used_fallback?: boolean;
+  thinking?: string;
   error?: string;
 }
 
@@ -84,8 +89,7 @@ const shouldAutoExpandContent = computed(() => {
 onMounted(async () => {
   try {
     const data = await fetchSettings();
-    autoShowAllContent.value =
-      data.auto_show_all_content === 'true' || data.auto_show_all_content === true;
+    autoShowAllContent.value = data.auto_show_all_content === true;
   } catch (e) {
     console.error('Error fetching settings for chat:', e);
   }
@@ -100,10 +104,8 @@ onMounted(async () => {
 // Computed to check if chat should be shown
 const showChatButton = computed(() => {
   return (
-    appSettings.value.ai_chat_enabled &&
-    !props.isLoadingContent &&
-    props.articleContent &&
-    props.showContent
+    appSettings.value.ai_chat_enabled && !props.isLoadingContent && props.articleContent
+    // Removed: props.showContent requirement - chat should work in both modes
   );
 });
 
@@ -130,6 +132,7 @@ const {
   loadSummarySettings,
   generateSummary: generateSummaryComposable,
   isSummaryLoading,
+  cancelSummaryGeneration,
 } = useArticleSummary();
 
 const { translationSettings, loadTranslationSettings } = useArticleTranslation();
@@ -152,6 +155,7 @@ const isLoadingSummary = computed(() =>
 
 // Additional state for summary translation
 const translatedSummary = ref('');
+const translatedSummaryHTML = ref(''); // HTML version of translated summary
 const isTranslatingSummary = ref(false);
 
 // Additional state for translation
@@ -167,8 +171,8 @@ async function loadSettings() {
 }
 
 // Translate text using the API
-async function translateText(text: string): Promise<string> {
-  if (!text || !translationEnabled.value) return '';
+async function translateText(text: string): Promise<{ text: string; html: string }> {
+  if (!text || !translationEnabled.value) return { text: '', html: '' };
 
   try {
     const res = await fetch('/api/articles/translate-text', {
@@ -182,7 +186,10 @@ async function translateText(text: string): Promise<string> {
 
     if (res.ok) {
       const data = await res.json();
-      return data.translated_text || '';
+      return {
+        text: data.translated_text || '',
+        html: data.html || '',
+      };
     } else {
       console.error('Error translating text:', res.status);
       window.showToast(t('errorTranslatingContent'), 'error');
@@ -191,7 +198,7 @@ async function translateText(text: string): Promise<string> {
     console.error('Error translating text:', e);
     window.showToast(t('errorTranslating'), 'error');
   }
-  return '';
+  return { text: '', html: '' };
 }
 
 // Fetch full article content from the original URL
@@ -206,7 +213,17 @@ async function fetchFullArticle() {
 
     if (res.ok) {
       const data = await res.json();
-      fullArticleContent.value = data.content || '';
+      let content = data.content || '';
+
+      // Proxy images if media cache is enabled
+      const cacheEnabled = await isMediaCacheEnabled();
+      if (cacheEnabled && content) {
+        // Use feed URL as referer for anti-hotlinking (more reliable than article URL)
+        const feedUrl = data.feed_url || props.article.url;
+        content = proxyImagesInHtml(content, feedUrl);
+      }
+
+      fullArticleContent.value = content;
       window.showToast(t('fullArticleFetched'), 'success');
 
       // After fetching full content, regenerate summary and trigger translation
@@ -245,6 +262,7 @@ async function generateSummary(article: Article, force: boolean = false) {
   if (force) {
     summaryResult.value = null;
     translatedSummary.value = '';
+    translatedSummaryHTML.value = '';
   }
 
   const result = await generateSummaryComposable(article, displayContent.value, force);
@@ -259,7 +277,9 @@ async function generateSummary(article: Article, force: boolean = false) {
   // Only translate if we got a new summary (result is from API, not cached)
   if (translationEnabled.value && result?.summary && !result.is_too_short) {
     isTranslatingSummary.value = true;
-    translatedSummary.value = await translateText(result.summary);
+    const translation = await translateText(result.summary);
+    translatedSummary.value = translation.text;
+    translatedSummaryHTML.value = translation.html;
     isTranslatingSummary.value = false;
   }
 }
@@ -284,7 +304,8 @@ async function translateTitle(article: Article) {
   if (!translationEnabled.value || !article?.title) return;
 
   isTranslatingTitle.value = true;
-  translatedTitle.value = await translateText(article.title);
+  const translation = await translateText(article.title);
+  translatedTitle.value = translation.text;
   isTranslatingTitle.value = false;
 }
 
@@ -390,7 +411,8 @@ async function translateContentParagraphs(content: string) {
     if (!textWithPlaceholders || textWithPlaceholders.length < 2) continue;
 
     // Translate the text (with placeholders and link markers)
-    const translatedText = await translateText(textWithPlaceholders);
+    const translation = await translateText(textWithPlaceholders);
+    const translatedText = translation.text;
 
     // Skip if translation is same as original or empty
     if (!translatedText || translatedText === textWithPlaceholders) continue;
@@ -451,6 +473,40 @@ async function reattachImageInteractions() {
   props.attachImageEventListeners();
 }
 
+// Clear text selection when clicking outside the selected content
+function handleContainerClick(event: MouseEvent) {
+  const selection = window.getSelection();
+  if (!selection || selection.toString().length === 0) return;
+
+  const target = event.target as HTMLElement;
+
+  // Don't clear if clicking on:
+  // - Links, buttons, or interactive elements
+  // - Inputs, textareas
+  // - Elements within the selection
+  const isInteractive =
+    target.tagName === 'A' ||
+    target.tagName === 'BUTTON' ||
+    target.tagName === 'INPUT' ||
+    target.tagName === 'TEXTAREA' ||
+    target.closest('a') !== null ||
+    target.closest('button') !== null;
+
+  if (isInteractive) return;
+
+  // Check if target is within the current selection
+  try {
+    if (selection.containsNode(target, true)) {
+      return;
+    }
+  } catch {
+    // containsNode can throw in some cases, ignore and proceed
+  }
+
+  // Clear the selection
+  selection.removeAllRanges();
+}
+
 // Handle auto show all content setting change
 function onAutoShowAllContentChanged(e: Event): void {
   const customEvent = e as CustomEvent<{ value: boolean }>;
@@ -462,8 +518,14 @@ watch(
   () => props.article?.id,
   async (newId, oldId) => {
     if (newId !== oldId) {
+      // Cancel any ongoing summary generation for the previous article
+      if (oldId !== undefined) {
+        cancelSummaryGeneration(oldId);
+      }
+
       summaryResult.value = null;
       translatedSummary.value = '';
+      translatedSummaryHTML.value = '';
       translatedTitle.value = '';
       lastTranslatedArticleId.value = null; // Reset translation tracking
       fullArticleContent.value = ''; // Reset full article content when switching articles
@@ -471,17 +533,19 @@ watch(
       if (props.article) {
         // Check if article has a cached summary first
         if (props.article.summary && props.article.summary.trim() !== '') {
-          // Load the cached summary immediately
-          summaryResult.value = {
-            summary: props.article.summary,
-            sentence_count: 0,
-            is_too_short: false,
-          };
+          // Load the cached summary by calling API to get HTML
+          // Don't use on-the-fly summarization, let backend convert cached markdown to HTML
+          const result = await generateSummaryComposable(props.article, '', false);
+          if (result) {
+            summaryResult.value = result;
+          }
 
           // Translate the cached summary if translation is enabled
-          if (translationEnabled.value) {
+          if (translationEnabled.value && result?.summary) {
             isTranslatingSummary.value = true;
-            translatedSummary.value = await translateText(props.article.summary);
+            const translation = await translateText(result.summary);
+            translatedSummary.value = translation.text;
+            translatedSummaryHTML.value = translation.html;
             isTranslatingSummary.value = false;
           }
         } else if (shouldAutoGenerateSummary()) {
@@ -549,17 +613,18 @@ onMounted(async () => {
 
     // Check for cached summary first
     if (props.article.summary && props.article.summary.trim() !== '') {
-      // Load the cached summary immediately
-      summaryResult.value = {
-        summary: props.article.summary,
-        sentence_count: 0,
-        is_too_short: false,
-      };
+      // Load the cached summary by calling API to get HTML
+      const result = await generateSummaryComposable(props.article, '', false);
+      if (result) {
+        summaryResult.value = result;
+      }
 
       // Translate the cached summary if translation is enabled
-      if (translationEnabled.value) {
+      if (translationEnabled.value && result?.summary) {
         isTranslatingSummary.value = true;
-        translatedSummary.value = await translateText(props.article.summary);
+        const translation = await translateText(result.summary);
+        translatedSummary.value = translation.text;
+        translatedSummaryHTML.value = translation.html;
         isTranslatingSummary.value = false;
       }
     } else if (shouldAutoGenerateSummary() && props.articleContent) {
@@ -592,6 +657,11 @@ watch(
 
 // Clean up event listeners
 onBeforeUnmount(() => {
+  // Cancel any ongoing summary generation
+  if (props.article?.id) {
+    cancelSummaryGeneration(props.article.id);
+  }
+
   window.removeEventListener(
     'auto-show-all-content-changed',
     onAutoShowAllContentChanged as EventListener
@@ -600,7 +670,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="flex-1 overflow-y-auto bg-bg-primary p-3 sm:p-6">
+  <div class="flex-1 overflow-y-auto bg-bg-primary p-3 sm:p-6" @click="handleContainerClick">
     <div
       class="max-w-3xl mx-auto bg-bg-primary"
       :class="{ 'hide-translations': !showTranslations }"
@@ -630,6 +700,7 @@ onBeforeUnmount(() => {
         :summary-result="summaryResult"
         :is-loading-summary="isLoadingSummary"
         :translated-summary="translatedSummary"
+        :translated-summary-html="translatedSummaryHTML"
         :is-translating-summary="isTranslatingSummary"
         :translation-enabled="translationEnabled"
         :summary-provider="summaryProvider"

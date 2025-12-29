@@ -16,6 +16,7 @@ export interface SettingsData {
   ai_usage_tokens: string;
   auto_cleanup_enabled: boolean;
   auto_show_all_content: boolean;
+  auto_update: boolean;
   baidu_app_id: string;
   baidu_secret_key: string;
   close_to_tray: boolean;
@@ -32,7 +33,7 @@ export interface SettingsData {
   hover_mark_as_read: boolean;
   image_gallery_enabled: boolean;
   language: string;
-  last_article_update: string;
+  last_global_refresh: string;
   last_network_test: string;
   max_article_age_days: number;
   max_cache_size_mb: number;
@@ -40,6 +41,7 @@ export interface SettingsData {
   media_cache_enabled: boolean;
   media_cache_max_age_days: number;
   media_cache_max_size_mb: number;
+  media_proxy_fallback: boolean;
   network_bandwidth_mbps: string;
   network_latency_ms: string;
   network_speed: string;
@@ -55,6 +57,7 @@ export interface SettingsData {
   refresh_mode: string;
   rules: string;
   shortcuts: string;
+  shortcuts_enabled: boolean;
   show_article_preview_images: boolean;
   show_hidden_articles: boolean;
   startup_on_boot: boolean;

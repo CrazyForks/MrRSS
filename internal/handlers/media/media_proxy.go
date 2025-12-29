@@ -8,6 +8,8 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -31,17 +33,48 @@ func validateMediaURL(urlStr string) error {
 	return nil
 }
 
+// proxyImagesInHTML replaces image URLs in HTML with proxied versions
+func proxyImagesInHTML(html, referer string) string {
+	if html == "" || referer == "" {
+		return html
+	}
+
+	// Use regex to find and replace img src attributes
+	// This handles various formats: src="url", src='url', src=url (unquoted)
+	re := regexp.MustCompile(`<img[^>]*src\s*=\s*(?:['"]\s*)?([^'"\s>]+)(?:\s*['"])?[^>]*>`)
+	html = re.ReplaceAllStringFunc(html, func(match string) string {
+		// Extract the src URL from the match
+		re := regexp.MustCompile(`src\s*=\s*(?:['"]\s*)?([^'"\s>]+)(?:\s*['"])?`)
+		srcMatch := re.FindStringSubmatch(match)
+		if len(srcMatch) < 3 {
+			return match // No valid src found, return unchanged
+		}
+
+		srcURL := srcMatch[2]
+
+		// Skip data URLs, blob URLs, and already proxied URLs
+		if strings.HasPrefix(srcURL, "data:") ||
+			strings.HasPrefix(srcURL, "blob:") ||
+			strings.Contains(srcURL, "/api/media/proxy") {
+			return match
+		}
+
+		// Build proxied URL
+		proxyURL := fmt.Sprintf("/api/media/proxy?url=%s&referer=%s",
+			url.QueryEscape(srcURL),
+			url.QueryEscape(referer))
+
+		// Replace the src attribute
+		return strings.Replace(match, srcMatch[0], fmt.Sprintf(`src="%s"`, proxyURL), 1)
+	})
+
+	return html
+}
+
 // HandleMediaProxy serves cached media or downloads and caches it
 func HandleMediaProxy(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Check if media cache is enabled
-	mediaCacheEnabled, _ := h.DB.GetSetting("media_cache_enabled")
-	if mediaCacheEnabled != "true" {
-		http.Error(w, "Media cache is disabled", http.StatusForbidden)
 		return
 	}
 
@@ -58,42 +91,60 @@ func HandleMediaProxy(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if media cache is enabled
+	mediaCacheEnabled, _ := h.DB.GetSetting("media_cache_enabled")
+	mediaProxyFallback, _ := h.DB.GetSetting("media_proxy_fallback")
+
+	// If neither cache nor fallback is enabled, return error
+	if mediaCacheEnabled != "true" && mediaProxyFallback != "true" {
+		http.Error(w, "Media proxy is disabled", http.StatusForbidden)
+		return
+	}
+
 	// Get optional referer from query parameter
 	referer := r.URL.Query().Get("referer")
 
-	// Get media cache directory
-	cacheDir, err := utils.GetMediaCacheDir()
-	if err != nil {
-		log.Printf("Failed to get media cache directory: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
+	// Try cache first if enabled
+	if mediaCacheEnabled == "true" {
+		// Get media cache directory
+		cacheDir, err := utils.GetMediaCacheDir()
+		if err != nil {
+			log.Printf("Failed to get media cache directory: %v", err)
+			// Continue to fallback if enabled
+		} else {
+			// Initialize media cache
+			mediaCache, err := cache.NewMediaCache(cacheDir)
+			if err != nil {
+				log.Printf("Failed to initialize media cache: %v", err)
+				// Continue to fallback if enabled
+			} else {
+				// Get media (from cache or download)
+				data, contentType, err := mediaCache.Get(mediaURL, referer)
+				if err == nil {
+					// Success! Serve from cache
+					w.Header().Set("Content-Type", contentType)
+					w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+					w.Header().Set("Cache-Control", "public, max-age=31536000") // Cache for 1 year
+					w.Header().Set("X-Media-Source", "cache")
+					w.Write(data)
+					return
+				}
+				log.Printf("Cache failed for %s: %v, trying fallback", mediaURL, err)
+			}
+		}
 	}
 
-	// Initialize media cache
-	mediaCache, err := cache.NewMediaCache(cacheDir)
-	if err != nil {
-		log.Printf("Failed to initialize media cache: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
+	// Fallback: Direct proxy if enabled
+	if mediaProxyFallback == "true" {
+		err := proxyMediaDirectly(mediaURL, referer, w)
+		if err == nil {
+			return // Success
+		}
+		log.Printf("Direct proxy failed for %s: %v", mediaURL, err)
 	}
 
-	// Get media (from cache or download)
-	data, contentType, err := mediaCache.Get(mediaURL, referer)
-	if err != nil {
-		log.Printf("Failed to get media %s: %v", mediaURL, err)
-		http.Error(w, "Failed to fetch media", http.StatusInternalServerError)
-		return
-	}
-
-	// Set appropriate headers
-	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
-	w.Header().Set("Cache-Control", "public, max-age=31536000") // Cache for 1 year
-
-	// Write response
-	if _, err := w.Write(data); err != nil {
-		log.Printf("Failed to write media response: %v", err)
-	}
+	// All methods failed
+	http.Error(w, "Failed to fetch media", http.StatusInternalServerError)
 }
 
 // HandleMediaCacheCleanup performs manual cleanup of media cache
@@ -119,18 +170,30 @@ func HandleMediaCacheCleanup(h *core.Handler, w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// Get settings
-	maxAgeDaysStr, _ := h.DB.GetSetting("media_cache_max_age_days")
-	maxSizeMBStr, _ := h.DB.GetSetting("media_cache_max_size_mb")
+	// Check if this is a manual cleanup (clean all) or automatic cleanup (respect settings)
+	cleanAll := r.URL.Query().Get("all") == "true"
 
-	maxAgeDays, err := strconv.Atoi(maxAgeDaysStr)
-	if err != nil || maxAgeDays <= 0 {
-		maxAgeDays = 7 // Default
-	}
+	var maxAgeDays int
+	var maxSizeMB int
 
-	maxSizeMB, err := strconv.Atoi(maxSizeMBStr)
-	if err != nil || maxSizeMB <= 0 {
-		maxSizeMB = 100 // Default
+	if cleanAll {
+		// Manual cleanup: remove all files
+		maxAgeDays = 0
+		maxSizeMB = 0 // Will skip size-based cleanup
+	} else {
+		// Automatic cleanup: use settings
+		maxAgeDaysStr, _ := h.DB.GetSetting("media_cache_max_age_days")
+		maxSizeMBStr, _ := h.DB.GetSetting("media_cache_max_size_mb")
+
+		maxAgeDays, err = strconv.Atoi(maxAgeDaysStr)
+		if err != nil || maxAgeDays < 0 {
+			maxAgeDays = 7 // Default
+		}
+
+		maxSizeMB, err = strconv.Atoi(maxSizeMBStr)
+		if err != nil || maxSizeMB <= 0 {
+			maxSizeMB = 100 // Default
+		}
 	}
 
 	// Cleanup by age
@@ -139,14 +202,17 @@ func HandleMediaCacheCleanup(h *core.Handler, w http.ResponseWriter, r *http.Req
 		log.Printf("Failed to cleanup old media files: %v", err)
 	}
 
-	// Cleanup by size
-	sizeCount, err := mediaCache.CleanupBySize(maxSizeMB)
-	if err != nil {
-		log.Printf("Failed to cleanup media files by size: %v", err)
+	// Cleanup by size (only for automatic cleanup)
+	sizeCount := 0
+	if !cleanAll {
+		sizeCount, err = mediaCache.CleanupBySize(maxSizeMB)
+		if err != nil {
+			log.Printf("Failed to cleanup media files by size: %v", err)
+		}
 	}
 
 	totalCleaned := ageCount + sizeCount
-	log.Printf("Media cache cleanup: removed %d files", totalCleaned)
+	log.Printf("Media cache cleanup: removed %d files (clean_all: %v)", totalCleaned, cleanAll)
 
 	w.Header().Set("Content-Type", "application/json")
 	response := map[string]interface{}{
@@ -277,6 +343,14 @@ func HandleWebpageProxy(h *core.Handler, w http.ResponseWriter, r *http.Request)
 				bodyStr = bodyStr[:headEndIndex] + baseTag + bodyStr[headEndIndex:]
 			}
 
+			// CRITICAL FIX: Proxy images in the HTML content
+			// Check if media cache is enabled
+			mediaCacheEnabled, _ := h.DB.GetSetting("media_cache_enabled")
+			if mediaCacheEnabled == "true" {
+				// Proxy all images in the HTML using the webpage URL as referer
+				bodyStr = proxyImagesInHTML(bodyStr, webpageURL)
+			}
+
 			// Convert back to bytes
 			bodyBytes = []byte(bodyStr)
 		}
@@ -294,12 +368,59 @@ func HandleWebpageProxy(h *core.Handler, w http.ResponseWriter, r *http.Request)
 	}
 }
 
+// proxyMediaDirectly proxies media directly without caching
+func proxyMediaDirectly(mediaURL, referer string, w http.ResponseWriter) error {
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	req, err := http.NewRequest("GET", mediaURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set headers to bypass anti-hotlinking
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	if referer != "" {
+		req.Header.Set("Referer", referer)
+	}
+
+	// Add additional headers
+	req.Header.Set("Accept", "image/webp,image/apng,image/*,*/*;q=0.8")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
+	req.Header.Set("Accept-Encoding", "gzip, deflate, br")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to fetch media: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	contentType := resp.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = getContentTypeFromPath(mediaURL)
+	}
+
+	// Set response headers
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Cache-Control", "public, max-age=3600") // Cache for 1 hour
+	w.Header().Set("X-Media-Source", "direct-proxy")
+
+	// Stream the response directly to avoid loading large files into memory
+	_, err = io.Copy(w, resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to stream response: %w", err)
+	}
+
+	return nil
+}
+
 // HandleMediaCacheInfo returns information about the media cache
 func HandleMediaCacheInfo(h *core.Handler, w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 
 	// Get media cache directory
 	cacheDir, err := utils.GetMediaCacheDir()
@@ -333,4 +454,35 @@ func HandleMediaCacheInfo(h *core.Handler, w http.ResponseWriter, r *http.Reques
 		"cache_size_mb": cacheSizeMB,
 	}
 	json.NewEncoder(w).Encode(response)
+}
+
+// getContentTypeFromPath determines content type from file extension
+func getContentTypeFromPath(path string) string {
+	ext := strings.ToLower(filepath.Ext(path))
+	switch ext {
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".png":
+		return "image/png"
+	case ".gif":
+		return "image/gif"
+	case ".webp":
+		return "image/webp"
+	case ".svg":
+		return "image/svg+xml"
+	case ".mp4":
+		return "video/mp4"
+	case ".webm":
+		return "video/webm"
+	case ".ogg":
+		return "video/ogg"
+	case ".mp3":
+		return "audio/mpeg"
+	case ".wav":
+		return "audio/wav"
+	case ".flac":
+		return "audio/flac"
+	default:
+		return "application/octet-stream"
+	}
 }

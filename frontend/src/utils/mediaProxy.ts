@@ -93,11 +93,26 @@ export function clearMediaCacheEnabledCache(): void {
 export function proxyImagesInHtml(html: string, referer?: string): string {
   if (!html) return html;
 
-  // Replace img src attributes - handles double quotes, single quotes, and unquoted values
+  // Enhanced regex to handle img src attributes with better pattern matching
+  // Handles double quotes, single quotes, and unquoted values
   // Note: Unquoted values cannot contain spaces per HTML specification
-  return html.replace(/<img([^>]+)src\s*=\s*(['"]?)([^"'\s>]+)\2/gi, (match, attrs, quote, src) => {
+  const imgRegex = /<img([^>]+)src\s*=\s*(['"]?)([^"'\s>]+)\2/gi;
+
+  return html.replace(imgRegex, (match, attrs, quote, src) => {
     const proxiedUrl = getProxiedMediaUrl(src, referer);
-    // Always output with double quotes for consistency
-    return `<img${attrs}src="${proxiedUrl}"`;
+
+    // If proxying failed or returned the same URL, keep original
+    if (!proxiedUrl || proxiedUrl === src) {
+      return match;
+    }
+
+    // Replace the src attribute, preserving the original quote style
+    const newSrc = `src=${quote}${proxiedUrl}${quote}`;
+    const srcRegex = new RegExp(
+      `src\\s*=\\s*${quote}${src.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}${quote}`,
+      'i'
+    );
+
+    return match.replace(srcRegex, newSrc);
   });
 }

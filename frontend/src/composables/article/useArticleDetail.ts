@@ -1,4 +1,4 @@
-import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useAppStore } from '@/stores/app';
 import { useI18n } from 'vue-i18n';
 import { openInBrowser } from '@/utils/browser';
@@ -66,13 +66,15 @@ export function useArticleDetail() {
         articleContent.value = '';
         currentArticleId.value = null;
 
+        // Always fetch article content for AI chat and translation features
+        await fetchArticleContent();
+
         // Check if there's a pending render action from context menu
         if (pendingRenderAction.value) {
           // Apply the explicit action instead of default
           if (pendingRenderAction.value === 'showContent') {
             showContent.value = true;
             userPreferredMode.value = 'rendered';
-            await fetchArticleContent();
           } else if (pendingRenderAction.value === 'showOriginal') {
             showContent.value = false;
             userPreferredMode.value = 'original';
@@ -81,12 +83,7 @@ export function useArticleDetail() {
         } else {
           // Apply user's preferred mode or determine from feed/global settings
           const preferredMode = userPreferredMode.value || getEffectiveViewMode();
-          if (preferredMode === 'rendered') {
-            showContent.value = true;
-            await fetchArticleContent();
-          } else {
-            showContent.value = false;
-          }
+          showContent.value = preferredMode === 'rendered';
         }
       }
     }
@@ -171,8 +168,9 @@ export function useArticleDetail() {
         // Proxy images if media cache is enabled
         const cacheEnabled = await isMediaCacheEnabled();
         if (cacheEnabled && content) {
-          // Use article URL as referer for anti-hotlinking
-          content = proxyImagesInHtml(content, article.value.url);
+          // Use feed URL as referer for anti-hotlinking (more reliable than article URL)
+          const feedUrl = data.feed_url || article.value.url;
+          content = proxyImagesInHtml(content, feedUrl);
         }
 
         articleContent.value = content;
@@ -399,18 +397,6 @@ export function useArticleDetail() {
         console.error('Error attaching event listeners to link:', error);
       }
     });
-  }
-
-  // Attach event listeners to links and images in rendered content
-  function attachContentEventListeners() {
-    // First unwrap images from links
-    unwrapImagesFromLinks();
-
-    // Then attach image event handlers
-    attachImageEventListeners();
-
-    // Finally attach link event handlers (after unwrapping)
-    attachLinkEventListeners();
   }
 
   function closeImageViewer() {

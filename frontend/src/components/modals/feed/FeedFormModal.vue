@@ -166,8 +166,20 @@ async function submit() {
     } else {
       // Read error message from response
       const errorText = await res.text();
-      const errorKey = props.mode === 'add' ? 'errorAddingFeed' : 'errorUpdatingFeed';
-      window.showToast(`${t(errorKey)}: ${errorText}`, 'error');
+
+      // Check if it's an XPath error for better display
+      if (feedType.value === 'xpath' && errorText.includes('XPath')) {
+        // For XPath errors, show a more detailed toast
+        const errorKey = props.mode === 'add' ? 'errorAddingFeed' : 'errorUpdatingFeed';
+        const title = t(errorKey);
+        let formattedMessage = `${title}:\n${errorText}`;
+
+        window.showToast(formattedMessage, 'error', 8000); // Show for 8 seconds for XPath errors
+      } else {
+        // For other errors, show the standard format
+        const errorKey = props.mode === 'add' ? 'errorAddingFeed' : 'errorUpdatingFeed';
+        window.showToast(`${t(errorKey)}: ${errorText}`, 'error');
+      }
     }
   } catch (e) {
     console.error(e);
@@ -183,6 +195,7 @@ async function submit() {
   <div
     class="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-2 sm:p-4"
     data-modal-open="true"
+    style="will-change: transform; transform: translateZ(0)"
   >
     <div
       class="bg-bg-primary w-full max-w-md h-full sm:h-auto sm:max-h-[90vh] flex flex-col rounded-none sm:rounded-2xl shadow-2xl border border-border overflow-hidden animate-fade-in"

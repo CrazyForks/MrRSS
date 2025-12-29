@@ -68,10 +68,10 @@ export const useAppStore = defineStore('app', () => {
     (localStorage.getItem('themePreference') as ThemePreference) || 'auto'
   );
   const theme = ref<Theme>('light');
-  const showOnlyUnread = ref<boolean>(false);
+  const showOnlyUnread = ref<boolean>(localStorage.getItem('showOnlyUnread') === 'true');
 
   // Refresh progress
-  const refreshProgress = ref<RefreshProgress>({ current: 0, total: 0, isRunning: false });
+  const refreshProgress = ref<RefreshProgress>({ isRunning: false });
   let refreshInterval: ReturnType<typeof setInterval> | null = null;
 
   // Actions - Article Management
@@ -181,10 +181,14 @@ export const useAppStore = defineStore('app', () => {
     }
   }
 
-  async function markAllAsRead(feedId?: number): Promise<void> {
+  async function markAllAsRead(feedId?: number, category?: string): Promise<void> {
     try {
-      const url = feedId
-        ? `/api/articles/mark-all-read?feed_id=${feedId}`
+      const params = new URLSearchParams();
+      if (feedId) params.append('feed_id', String(feedId));
+      if (category) params.append('category', category);
+
+      const url = params.toString()
+        ? `/api/articles/mark-all-read?${params.toString()}`
         : '/api/articles/mark-all-read';
       await fetch(url, { method: 'POST' });
       // Refresh articles and unread counts
@@ -261,30 +265,74 @@ export const useAppStore = defineStore('app', () => {
     refreshProgress.value.isRunning = true;
     try {
       await fetch('/api/refresh', { method: 'POST' });
+      // Immediately fetch progress once before starting polling
+      await fetchProgressOnce();
       pollProgress();
     } catch {
       refreshProgress.value.isRunning = false;
     }
   }
 
+  async function fetchProgressOnce(): Promise<void> {
+    try {
+      // Wait a bit for the backend to start processing
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const res = await fetch('/api/progress');
+      const data = await res.json();
+      console.log('Initial progress update:', data);
+      refreshProgress.value = {
+        ...refreshProgress.value,
+        isRunning: data.is_running,
+        errors: data.errors,
+        pool_task_count: data.pool_task_count,
+        article_click_count: data.article_click_count,
+        queue_task_count: data.queue_task_count,
+      };
+      console.log('Initial refreshProgress:', refreshProgress.value);
+    } catch (e) {
+      console.error('Error fetching initial progress:', e);
+    }
+  }
+
   function pollProgress(): void {
-    let lastCurrent = 0;
+    // Track previous pool/queue counts to detect task completion
+    let previousPoolCount = 0;
+    let previousQueueCount = 0;
+
     const interval = setInterval(async () => {
       try {
         const res = await fetch('/api/progress');
         const data = await res.json();
         refreshProgress.value = {
-          current: data.current,
-          total: data.total,
+          ...refreshProgress.value, // Preserve existing pool_tasks and queue_tasks
           isRunning: data.is_running,
           errors: data.errors,
+          pool_task_count: data.pool_task_count ?? 0,
+          article_click_count: data.article_click_count ?? 0,
+          queue_task_count: data.queue_task_count ?? 0,
         };
 
-        // Update unread counts whenever progress advances (but don't refresh articles to avoid disrupting scroll position)
-        if (data.current > lastCurrent) {
-          lastCurrent = data.current;
-          fetchUnreadCounts();
+        // Fetch task details if refresh is running
+        if (data.is_running && (data.pool_task_count > 0 || data.queue_task_count > 0)) {
+          await fetchTaskDetails();
         }
+
+        // Detect task completion and update unread counts immediately
+        const currentPoolCount = data.pool_task_count ?? 0;
+        const currentQueueCount = data.queue_task_count ?? 0;
+        const totalTasks = currentPoolCount + currentQueueCount;
+        const previousTotal = previousPoolCount + previousQueueCount;
+
+        // If task count decreased, tasks completed - update unread counts
+        if (totalTasks < previousTotal && previousTotal > 0) {
+          fetchUnreadCounts();
+          fetchFeeds(); // Also update feeds to refresh error marks
+        }
+
+        // Update previous counts
+        previousPoolCount = currentPoolCount;
+        previousQueueCount = currentQueueCount;
 
         if (!data.is_running) {
           clearInterval(interval);
@@ -292,17 +340,12 @@ export const useAppStore = defineStore('app', () => {
           fetchArticles();
           fetchUnreadCounts();
 
-          // Show error toasts for any feed errors
-          if (data.errors && Object.keys(data.errors).length > 0) {
-            Object.entries(data.errors).forEach(([feedId, errorMsg]) => {
-              const feed = feeds.value.find((f) => f.id === parseInt(feedId));
-              const feedTitle = feed ? feed.title : `Feed ${feedId}`;
-              window.showToast(
-                `${t('feedRefreshError', { feed: feedTitle })}: ${errorMsg}`,
-                'error'
-              );
-            });
-          }
+          // Notify components that settings have been updated (e.g., last_article_update)
+          // This triggers components using useSettings() to refresh their settings
+          window.dispatchEvent(new CustomEvent('settings-updated'));
+
+          // Note: We no longer show error toasts for failed feeds
+          // Users can see error status in the feed list sidebar
 
           // Check for app updates after initial refresh completes
           checkForAppUpdates();
@@ -401,6 +444,23 @@ export const useAppStore = defineStore('app', () => {
 
   function toggleShowOnlyUnread(): void {
     showOnlyUnread.value = !showOnlyUnread.value;
+    localStorage.setItem('showOnlyUnread', String(showOnlyUnread.value));
+  }
+
+  async function fetchTaskDetails(): Promise<void> {
+    try {
+      const res = await fetch('/api/progress/task-details');
+      if (res.ok) {
+        const data = await res.json();
+        refreshProgress.value = {
+          ...refreshProgress.value,
+          pool_tasks: data.pool_tasks,
+          queue_tasks: data.queue_tasks,
+        };
+      }
+    } catch (e) {
+      console.error('Error fetching task details:', e);
+    }
   }
 
   return {
@@ -440,5 +500,6 @@ export const useAppStore = defineStore('app', () => {
     checkForAppUpdates,
     startAutoRefresh,
     toggleShowOnlyUnread,
+    fetchTaskDetails,
   };
 });

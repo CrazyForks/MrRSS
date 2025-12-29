@@ -33,6 +33,7 @@ export interface KeyboardShortcutCallbacks {
 export function useKeyboardShortcuts(callbacks: KeyboardShortcutCallbacks) {
   const store = useAppStore();
 
+  const shortcutsEnabled = ref(true);
   const shortcuts = ref<KeyboardShortcuts>({
     nextArticle: 'j',
     previousArticle: 'k',
@@ -174,6 +175,25 @@ export function useKeyboardShortcuts(callbacks: KeyboardShortcutCallbacks) {
 
   // Keyboard event handler
   function handleKeyboardShortcut(e: KeyboardEvent): void {
+    // Skip if shortcuts are disabled
+    if (!shortcutsEnabled.value) {
+      return;
+    }
+
+    // Check if settings modal is open
+    const settingsModalOpen = document.querySelector('[data-settings-modal="true"]') !== null;
+
+    // If settings modal is open, only allow ESC key
+    if (settingsModalOpen) {
+      const key = buildKeyCombo(e);
+      if (key === shortcuts.value.closeArticle) {
+        // Let the modal's own ESC handler deal with it
+        return;
+      }
+      // Block all other shortcuts when settings modal is open
+      return;
+    }
+
     // Skip if we're in an input field, textarea, or contenteditable
     const target = e.target as HTMLElement;
     const tagName = target.tagName.toLowerCase();
@@ -182,7 +202,7 @@ export function useKeyboardShortcuts(callbacks: KeyboardShortcutCallbacks) {
 
     const key = buildKeyCombo(e);
 
-    // Check for escape key to close modals first (always allow)
+    // Check for escape key to close modals first (always allow, even when shortcuts disabled)
     if (key === shortcuts.value.closeArticle) {
       // Check if there are any open modals
       const hasOpenModal = document.querySelector('[data-modal-open="true"]') !== null;
@@ -279,15 +299,33 @@ export function useKeyboardShortcuts(callbacks: KeyboardShortcutCallbacks) {
     }
   }
 
+  // Handle shortcuts enabled changed event
+  function handleShortcutsEnabledChanged(e: Event): void {
+    const customEvent = e as CustomEvent;
+    if (customEvent.detail && typeof customEvent.detail.enabled === 'boolean') {
+      shortcutsEnabled.value = customEvent.detail.enabled;
+    }
+  }
+
+  // Initialize shortcuts enabled state from settings
+  function initializeShortcutsEnabled(): void {
+    // Note: store.settings is not available in the store
+    // The shortcuts_enabled state is initialized via the shortcuts-enabled-changed event
+    // Default is true (enabled)
+  }
+
   // Lifecycle
   onMounted(() => {
+    initializeShortcutsEnabled();
     window.addEventListener('keydown', handleKeyboardShortcut);
     window.addEventListener('shortcuts-changed', handleShortcutsChanged);
+    window.addEventListener('shortcuts-enabled-changed', handleShortcutsEnabledChanged);
   });
 
   onBeforeUnmount(() => {
     window.removeEventListener('keydown', handleKeyboardShortcut);
     window.removeEventListener('shortcuts-changed', handleShortcutsChanged);
+    window.removeEventListener('shortcuts-enabled-changed', handleShortcutsEnabledChanged);
   });
 
   return {

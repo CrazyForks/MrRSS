@@ -35,10 +35,14 @@ func TestHandleMediaProxy_MethodNotAllowed(t *testing.T) {
 
 func TestHandleMediaProxy_CacheDisabled(t *testing.T) {
 	h := setupHandler(t)
-	req := httptest.NewRequest(http.MethodGet, "/media/proxy", nil)
+
+	// Disable both cache and fallback to test disabled state
+	_ = h.DB.SetSetting("media_cache_enabled", "false")
+	_ = h.DB.SetSetting("media_proxy_fallback", "false")
+
+	req := httptest.NewRequest(http.MethodGet, "/media/proxy?url=https://example.com/image.jpg", nil)
 	rr := httptest.NewRecorder()
 
-	// By default media_cache_enabled is not true
 	HandleMediaProxy(h, rr, req)
 
 	if rr.Code != http.StatusForbidden {

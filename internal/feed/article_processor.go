@@ -30,19 +30,31 @@ func ExtractContent(item *gofeed.Item) string {
 	return item.Description
 }
 
+// ArticleWithContent represents an article with its RSS content
+type ArticleWithContent struct {
+	Article *models.Article
+	Content string
+}
+
 // processArticles processes RSS feed items and converts them to Article models
-func (f *Fetcher) processArticles(feed models.Feed, items []*gofeed.Item) []*models.Article {
+// Returns a slice of ArticleWithContent which includes both the article and its content
+func (f *Fetcher) processArticles(feed models.Feed, items []*gofeed.Item) []*ArticleWithContent {
 	// Check translation settings
 	translationEnabledStr, _ := f.db.GetSetting("translation_enabled")
 	targetLang, _ := f.db.GetSetting("target_language")
 	translationEnabled := translationEnabledStr == "true"
 
-	var articles []*models.Article
+	var articlesWithContent []*ArticleWithContent
 
 	for _, item := range items {
-		published := time.Now()
+		var published time.Time
+		var hasValidPublishedTime bool
 		if item.PublishedParsed != nil {
 			published = *item.PublishedParsed
+			hasValidPublishedTime = true
+		} else {
+			published = time.Now() // Still set for database storage
+			hasValidPublishedTime = false
 		}
 
 		imageURL := extractImageURL(item)
@@ -77,19 +89,24 @@ func (f *Fetcher) processArticles(feed models.Feed, items []*gofeed.Item) []*mod
 		}
 
 		article := &models.Article{
-			FeedID:          feed.ID,
-			Title:           title,
-			URL:             item.Link,
-			ImageURL:        imageURL,
-			AudioURL:        audioURL,
-			VideoURL:        videoURL,
-			PublishedAt:     published,
-			TranslatedTitle: translatedTitle,
+			FeedID:                feed.ID,
+			Title:                 title,
+			URL:                   item.Link,
+			ImageURL:              imageURL,
+			AudioURL:              audioURL,
+			VideoURL:              videoURL,
+			PublishedAt:           published,
+			HasValidPublishedTime: hasValidPublishedTime,
+			TranslatedTitle:       translatedTitle,
 		}
-		articles = append(articles, article)
+
+		articlesWithContent = append(articlesWithContent, &ArticleWithContent{
+			Article: article,
+			Content: content,
+		})
 	}
 
-	return articles
+	return articlesWithContent
 }
 
 // extractImageURL extracts the image URL from a feed item

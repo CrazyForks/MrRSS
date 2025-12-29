@@ -117,11 +117,27 @@ func (mc *MediaCache) download(url, referer string) ([]byte, string, error) {
 		return nil, "", fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// Set headers to bypass anti-hotlinking
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	// Set headers to bypass anti-hotlinking - try multiple user agents
+	userAgents := []string{
+		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+		"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+		"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+	}
+
+	req.Header.Set("User-Agent", userAgents[0]) // Start with Windows Chrome
+
+	// Set referer if provided
 	if referer != "" {
 		req.Header.Set("Referer", referer)
 	}
+
+	// Add additional headers to bypass restrictions
+	req.Header.Set("Accept", "image/webp,image/apng,image/*,*/*;q=0.8")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
+	req.Header.Set("Accept-Encoding", "gzip, deflate, br")
+	req.Header.Set("DNT", "1")
+	req.Header.Set("Connection", "keep-alive")
+	req.Header.Set("Upgrade-Insecure-Requests", "1")
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -148,8 +164,15 @@ func (mc *MediaCache) download(url, referer string) ([]byte, string, error) {
 
 // CleanupOldFiles removes cached files older than the specified age
 func (mc *MediaCache) CleanupOldFiles(maxAgeDays int) (int, error) {
-	cutoffTime := time.Now().AddDate(0, 0, -maxAgeDays)
+	var cutoffTime time.Time
 	count := 0
+
+	if maxAgeDays <= 0 {
+		// Special case: remove all files regardless of age
+		cutoffTime = time.Now().Add(time.Hour) // Future time to match all files
+	} else {
+		cutoffTime = time.Now().AddDate(0, 0, -maxAgeDays)
+	}
 
 	entries, err := os.ReadDir(mc.cacheDir)
 	if err != nil {

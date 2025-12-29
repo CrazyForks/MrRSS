@@ -29,6 +29,7 @@ type Defaults struct {
 	AIUsageTokens            string `json:"ai_usage_tokens"`
 	AutoCleanupEnabled       bool   `json:"auto_cleanup_enabled"`
 	AutoShowAllContent       bool   `json:"auto_show_all_content"`
+	AutoUpdate               bool   `json:"auto_update"`
 	BaiduAppId               string `json:"baidu_app_id"`
 	BaiduSecretKey           string `json:"baidu_secret_key"`
 	CloseToTray              bool   `json:"close_to_tray"`
@@ -45,7 +46,7 @@ type Defaults struct {
 	HoverMarkAsRead          bool   `json:"hover_mark_as_read"`
 	ImageGalleryEnabled      bool   `json:"image_gallery_enabled"`
 	Language                 string `json:"language"`
-	LastArticleUpdate        string `json:"last_article_update"`
+	LastGlobalRefresh        string `json:"last_global_refresh"`
 	LastNetworkTest          string `json:"last_network_test"`
 	MaxArticleAgeDays        int    `json:"max_article_age_days"`
 	MaxCacheSizeMb           int    `json:"max_cache_size_mb"`
@@ -53,6 +54,7 @@ type Defaults struct {
 	MediaCacheEnabled        bool   `json:"media_cache_enabled"`
 	MediaCacheMaxAgeDays     int    `json:"media_cache_max_age_days"`
 	MediaCacheMaxSizeMb      int    `json:"media_cache_max_size_mb"`
+	MediaProxyFallback       bool   `json:"media_proxy_fallback"`
 	NetworkBandwidthMbps     string `json:"network_bandwidth_mbps"`
 	NetworkLatencyMs         string `json:"network_latency_ms"`
 	NetworkSpeed             string `json:"network_speed"`
@@ -68,6 +70,7 @@ type Defaults struct {
 	RefreshMode              string `json:"refresh_mode"`
 	Rules                    string `json:"rules"`
 	Shortcuts                string `json:"shortcuts"`
+	ShortcutsEnabled         bool   `json:"shortcuts_enabled"`
 	ShowArticlePreviewImages bool   `json:"show_article_preview_images"`
 	ShowHiddenArticles       bool   `json:"show_hidden_articles"`
 	StartupOnBoot            bool   `json:"startup_on_boot"`
@@ -125,6 +128,8 @@ func GetString(key string) string {
 		return strconv.FormatBool(defaults.AutoCleanupEnabled)
 	case "auto_show_all_content":
 		return strconv.FormatBool(defaults.AutoShowAllContent)
+	case "auto_update":
+		return strconv.FormatBool(defaults.AutoUpdate)
 	case "baidu_app_id":
 		return defaults.BaiduAppId
 	case "baidu_secret_key":
@@ -157,8 +162,8 @@ func GetString(key string) string {
 		return strconv.FormatBool(defaults.ImageGalleryEnabled)
 	case "language":
 		return defaults.Language
-	case "last_article_update":
-		return defaults.LastArticleUpdate
+	case "last_global_refresh":
+		return defaults.LastGlobalRefresh
 	case "last_network_test":
 		return defaults.LastNetworkTest
 	case "max_article_age_days":
@@ -173,6 +178,8 @@ func GetString(key string) string {
 		return strconv.Itoa(defaults.MediaCacheMaxAgeDays)
 	case "media_cache_max_size_mb":
 		return strconv.Itoa(defaults.MediaCacheMaxSizeMb)
+	case "media_proxy_fallback":
+		return strconv.FormatBool(defaults.MediaProxyFallback)
 	case "network_bandwidth_mbps":
 		return defaults.NetworkBandwidthMbps
 	case "network_latency_ms":
@@ -203,6 +210,8 @@ func GetString(key string) string {
 		return defaults.Rules
 	case "shortcuts":
 		return defaults.Shortcuts
+	case "shortcuts_enabled":
+		return strconv.FormatBool(defaults.ShortcutsEnabled)
 	case "show_article_preview_images":
 		return strconv.FormatBool(defaults.ShowArticlePreviewImages)
 	case "show_hidden_articles":

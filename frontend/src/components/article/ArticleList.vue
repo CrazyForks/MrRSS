@@ -11,6 +11,9 @@ import {
   PhCheckCircle,
   PhEye,
   PhEyeSlash,
+  PhCircle,
+  PhClock,
+  PhLightning,
 } from '@phosphor-icons/vue';
 import ArticleFilterModal from '../modals/filter/ArticleFilterModal.vue';
 import ArticleItem from './ArticleItem.vue';
@@ -28,6 +31,9 @@ const defaultViewMode = ref<'original' | 'rendered'>('original');
 const showFilterModal = ref(false);
 const isRefreshing = ref(false);
 const savedScrollTop = ref(0);
+const showRefreshTooltip = ref(false);
+// Track articles that should be temporarily kept in list even if read
+const temporarilyKeepArticles = ref<Set<number>>(new Set());
 
 interface Props {
   isSidebarOpen?: boolean;
@@ -67,8 +73,11 @@ const filteredArticles = computed(() => {
   let articles = activeFilters.value.length > 0 ? filteredArticlesFromServer.value : store.articles;
 
   // If show only unread is enabled, filter out read articles
+  // but keep articles that are temporarily marked (currently being viewed)
   if (store.showOnlyUnread) {
-    articles = articles.filter((article) => !article.is_read);
+    articles = articles.filter(
+      (article) => !article.is_read || temporarilyKeepArticles.value.has(article.id)
+    );
   }
 
   return articles;
@@ -204,20 +213,39 @@ function onToggleFilter(): void {
   showFilterModal.value = !showFilterModal.value;
 }
 
+// Show tooltip when hovering over refresh button
+function onRefreshTooltipShow(): void {
+  showRefreshTooltip.value = true;
+  // Task details are automatically updated via pollProgress()
+}
+
+function onRefreshTooltipHide(): void {
+  showRefreshTooltip.value = false;
+}
+
 // Article selection and interaction
 function selectArticle(article: Article): void {
   // If clicking the same article, close the detail view
   if (store.currentArticleId === article.id) {
     store.currentArticleId = null;
+    // Remove from temporarily keep list when closing
+    temporarilyKeepArticles.value.delete(article.id);
     return;
   }
 
   // Reset user preference when selecting article via normal click
   window.dispatchEvent(new CustomEvent('reset-user-view-preference'));
 
+  // If switching from one article to another, remove the previous one from temp list
+  if (store.currentArticleId) {
+    temporarilyKeepArticles.value.delete(store.currentArticleId);
+  }
+
   store.currentArticleId = article.id;
   if (!article.is_read) {
     article.is_read = true;
+    // Add to temporarily keep list so it doesn't disappear immediately
+    temporarilyKeepArticles.value.add(article.id);
     fetch(`/api/articles/read?id=${article.id}&read=true`, { method: 'POST' })
       .then(() => {
         store.fetchUnreadCounts();
@@ -266,8 +294,41 @@ async function refreshArticles(): Promise<void> {
 }
 
 async function markAllAsRead(): Promise<void> {
-  await store.markAllAsRead();
-  window.showToast(t('markedAllAsRead'), 'success');
+  // If filters are active, mark only filtered articles as read
+  if (activeFilters.value.length > 0) {
+    try {
+      // Get IDs of filtered articles
+      const articleIds = filteredArticlesFromServer.value.map((a) => a.id);
+      if (articleIds.length === 0) {
+        window.showToast(t('noArticlesToMark'), 'info');
+        return;
+      }
+
+      // Mark all filtered articles as read
+      await Promise.all(
+        articleIds.map((id) => fetch(`/api/articles/read?id=${id}&read=true`, { method: 'POST' }))
+      );
+
+      // Refresh articles and counts
+      await store.fetchArticles();
+      await store.fetchUnreadCounts();
+      window.showToast(t('markedAllAsRead'), 'success');
+    } catch (e) {
+      console.error('Error marking filtered articles as read:', e);
+    }
+  } else {
+    // Use store's markAllAsRead which handles feed and category
+    const params: { feed_id?: number; category?: string } = {};
+
+    if (store.currentFeedId) {
+      params.feed_id = store.currentFeedId;
+    } else if (store.currentCategory) {
+      params.category = store.currentCategory;
+    }
+
+    await store.markAllAsRead(params.feed_id, params.category);
+    window.showToast(t('markedAllAsRead'), 'success');
+  }
 }
 
 async function clearReadLater(): Promise<void> {
@@ -349,7 +410,11 @@ function handleHoverMarkAsRead(articleId: number): void {
               {{ activeFilters.length }}
             </div>
           </div>
-          <div class="relative">
+          <div
+            class="relative"
+            @mouseenter="onRefreshTooltipShow"
+            @mouseleave="onRefreshTooltipHide"
+          >
             <button
               class="text-text-secondary hover:text-text-primary hover:bg-bg-tertiary p-1 sm:p-1.5 rounded transition-colors"
               :title="t('refresh')"
@@ -364,12 +429,111 @@ function handleHoverMarkAsRead(articleId: number): void {
             <div
               v-if="
                 store.refreshProgress.isRunning &&
-                store.refreshProgress.total > store.refreshProgress.current
+                (store.refreshProgress.queue_task_count || 0) +
+                  (store.refreshProgress.pool_task_count || 0) >
+                  0
               "
               class="absolute -top-1 -right-1 bg-accent text-white text-[9px] sm:text-[10px] font-bold rounded-full min-w-[14px] sm:min-w-[16px] h-3.5 sm:h-4 px-0.5 sm:px-1 flex items-center justify-center"
             >
-              {{ store.refreshProgress.total - store.refreshProgress.current }}
+              {{
+                (store.refreshProgress.queue_task_count || 0) +
+                (store.refreshProgress.pool_task_count || 0)
+              }}
             </div>
+
+            <!-- Task Pool Tooltip -->
+            <Transition
+              enter-active-class="transition ease-out duration-200"
+              enter-from-class="opacity-0 scale-95"
+              enter-to-class="opacity-100 scale-100"
+              leave-active-class="transition ease-in duration-150"
+              leave-from-class="opacity-100 scale-100"
+              leave-to-class="opacity-0 scale-95"
+            >
+              <div
+                v-if="
+                  showRefreshTooltip &&
+                  ((store.refreshProgress.pool_task_count || 0) > 0 ||
+                    (store.refreshProgress.queue_task_count || 0) > 0 ||
+                    (store.refreshProgress.article_click_count || 0) > 0)
+                "
+                class="absolute right-0 top-full mt-2 z-50 w-72 bg-bg-secondary rounded-lg shadow-xl overflow-hidden"
+              >
+                <div class="px-3 py-2">
+                  <div class="text-xs font-semibold text-text-primary mb-2 flex items-center gap-2">
+                    <PhArrowClockwise :size="12" class="animate-spin-slow" />
+                    {{ t('refreshing') }}
+                  </div>
+
+                  <!-- Pool Tasks - Show all tasks sorted alphabetically -->
+                  <div v-if="(store.refreshProgress.pool_task_count || 0) > 0" class="mb-2">
+                    <div
+                      class="text-[10px] text-text-secondary mb-1.5 font-medium flex items-center gap-1"
+                    >
+                      <PhCircle :size="10" class="text-accent" />
+                      {{ t('activeTasks') }} ({{ store.refreshProgress.pool_task_count || 0 }})
+                    </div>
+                    <div class="space-y-0.5">
+                      <div
+                        v-for="(task, index) in store.refreshProgress.pool_tasks || []"
+                        :key="'pool-' + index"
+                        class="text-xs text-text-primary bg-accent/10 px-2.5 py-1.5 rounded truncate"
+                        :title="task.feed_title"
+                      >
+                        <div class="flex items-center gap-2">
+                          <PhCircle :size="10" class="text-accent animate-pulse flex-shrink-0" />
+                          <span class="truncate flex-1">{{ task.feed_title }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Queue Tasks - Show first 3 -->
+                  <div v-if="(store.refreshProgress.queue_task_count || 0) > 0">
+                    <div
+                      class="text-[10px] text-text-secondary mb-1.5 font-medium flex items-center gap-1"
+                    >
+                      <PhClock :size="10" />
+                      {{ t('queuedTasks') }} ({{ store.refreshProgress.queue_task_count || 0 }})
+                    </div>
+                    <div class="space-y-0.5">
+                      <div
+                        v-for="(task, index) in store.refreshProgress.queue_tasks || []"
+                        :key="'queue-' + index"
+                        class="text-xs text-text-secondary bg-bg-tertiary/50 px-2.5 py-1.5 rounded truncate"
+                        :title="task.feed_title"
+                      >
+                        <div class="flex items-center gap-2">
+                          <PhClock :size="10" class="flex-shrink-0" />
+                          <span class="truncate flex-1">{{ task.feed_title }}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Article Click Tasks -->
+                  <div
+                    v-if="(store.refreshProgress.article_click_count || 0) > 0"
+                    class="mt-2 pt-2 border-t border-border/50"
+                  >
+                    <div
+                      class="text-[10px] text-text-secondary mb-1.5 font-medium flex items-center gap-1"
+                    >
+                      <PhLightning :size="10" class="text-accent" />
+                      {{ t('immediateTasks') }} ({{
+                        store.refreshProgress.article_click_count || 0
+                      }})
+                    </div>
+                    <div class="text-xs text-accent bg-accent/10 px-2.5 py-1.5 rounded truncate">
+                      <div class="flex items-center gap-2">
+                        <PhLightning :size="10" class="flex-shrink-0" />
+                        <span class="truncate">{{ t('fetchingArticleContent') }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </Transition>
           </div>
           <button class="md:hidden text-xl sm:text-2xl p-1" @click="emit('toggleSidebar')">
             <PhList :size="20" class="sm:w-6 sm:h-6" />

@@ -167,7 +167,7 @@
     },
     "ai_usage_limit": {
       "type": "string",
-      "default": "200",
+      "default": "20000",
       "category": "ai",
       "encrypted": false,
       "frontend_key": "aiUsageLimit"
@@ -209,14 +209,14 @@
     },
     "auto_cleanup_enabled": {
       "type": "bool",
-      "default": false,
+      "default": true,
       "category": "storage",
       "encrypted": false,
       "frontend_key": "autoCleanupEnabled"
     },
     "max_cache_size_mb": {
       "type": "int",
-      "default": 20,
+      "default": 500,
       "category": "storage",
       "encrypted": false,
       "frontend_key": "maxCacheSizeMB"
@@ -235,9 +235,16 @@
       "encrypted": false,
       "frontend_key": "mediaCacheEnabled"
     },
+    "media_proxy_fallback": {
+      "type": "bool",
+      "default": true,
+      "category": "storage",
+      "encrypted": false,
+      "frontend_key": "mediaProxyFallback"
+    },
     "media_cache_max_size_mb": {
       "type": "int",
-      "default": 100,
+      "default": 200,
       "category": "storage",
       "encrypted": false,
       "frontend_key": "mediaCacheMaxSizeMB"
@@ -305,12 +312,12 @@
       "encrypted": false,
       "frontend_key": "rules"
     },
-    "last_article_update": {
+    "last_global_refresh": {
       "type": "string",
       "default": "",
       "category": "internal",
       "encrypted": false,
-      "frontend_key": "lastArticleUpdate"
+      "frontend_key": "lastGlobalRefresh"
     },
     "google_translate_endpoint": {
       "type": "string",
@@ -472,6 +479,20 @@
       "category": "reading",
       "encrypted": false,
       "frontend_key": "customCSSFile"
+    },
+    "auto_update": {
+      "type": "bool",
+      "default": false,
+      "category": "general",
+      "encrypted": false,
+      "frontend_key": "autoUpdate"
+    },
+    "shortcuts_enabled": {
+      "type": "bool",
+      "default": true,
+      "category": "general",
+      "encrypted": false,
+      "frontend_key": "shortcutsEnabled"
     }
   }
 }

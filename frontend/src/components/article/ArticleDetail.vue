@@ -4,8 +4,9 @@ import { useArticleDetail } from '@/composables/article/useArticleDetail';
 import ArticleToolbar from './ArticleToolbar.vue';
 import ArticleContent from './ArticleContent.vue';
 import ImageViewer from '../common/ImageViewer.vue';
+import FindInPage from '../common/FindInPage.vue';
 
-import { ref } from 'vue';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 
 const {
   article,
@@ -28,10 +29,42 @@ const {
 } = useArticleDetail();
 
 const showTranslations = ref(true);
+const showFindInPage = ref(false);
 
 function toggleTranslations() {
   showTranslations.value = !showTranslations.value;
 }
+
+function openFindInPage() {
+  showFindInPage.value = true;
+}
+
+function closeFindInPage() {
+  showFindInPage.value = false;
+}
+
+function handleKeydown(e: KeyboardEvent) {
+  // Open find in page with Ctrl+F or Cmd+F
+  if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+    // Only if we're showing an article in content mode (not webpage view)
+    if (article.value && showContent.value) {
+      e.preventDefault();
+      openFindInPage();
+    }
+  }
+  // Close with Escape
+  if (e.key === 'Escape' && showFindInPage.value) {
+    closeFindInPage();
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeydown);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleKeydown);
+});
 </script>
 
 <template>
@@ -86,6 +119,13 @@ function toggleTranslations() {
         @retry-load-content="handleRetryLoadContent"
       />
     </div>
+
+    <!-- Find in Page (only shown in content mode) -->
+    <FindInPage
+      v-if="showFindInPage && showContent"
+      container-selector=".prose-content"
+      @close="closeFindInPage"
+    />
 
     <!-- Image Viewer Modal -->
     <ImageViewer

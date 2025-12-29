@@ -25,6 +25,7 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 		aiUsageTokens, _ := h.DB.GetSetting("ai_usage_tokens")
 		autoCleanupEnabled, _ := h.DB.GetSetting("auto_cleanup_enabled")
 		autoShowAllContent, _ := h.DB.GetSetting("auto_show_all_content")
+		autoUpdate, _ := h.DB.GetSetting("auto_update")
 		baiduAppId, _ := h.DB.GetSetting("baidu_app_id")
 		baiduSecretKey, _ := h.DB.GetEncryptedSetting("baidu_secret_key")
 		closeToTray, _ := h.DB.GetSetting("close_to_tray")
@@ -41,7 +42,7 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 		hoverMarkAsRead, _ := h.DB.GetSetting("hover_mark_as_read")
 		imageGalleryEnabled, _ := h.DB.GetSetting("image_gallery_enabled")
 		language, _ := h.DB.GetSetting("language")
-		lastArticleUpdate, _ := h.DB.GetSetting("last_article_update")
+		lastGlobalRefresh, _ := h.DB.GetSetting("last_global_refresh")
 		lastNetworkTest, _ := h.DB.GetSetting("last_network_test")
 		maxArticleAgeDays, _ := h.DB.GetSetting("max_article_age_days")
 		maxCacheSizeMb, _ := h.DB.GetSetting("max_cache_size_mb")
@@ -49,6 +50,7 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 		mediaCacheEnabled, _ := h.DB.GetSetting("media_cache_enabled")
 		mediaCacheMaxAgeDays, _ := h.DB.GetSetting("media_cache_max_age_days")
 		mediaCacheMaxSizeMb, _ := h.DB.GetSetting("media_cache_max_size_mb")
+		mediaProxyFallback, _ := h.DB.GetSetting("media_proxy_fallback")
 		networkBandwidthMbps, _ := h.DB.GetSetting("network_bandwidth_mbps")
 		networkLatencyMs, _ := h.DB.GetSetting("network_latency_ms")
 		networkSpeed, _ := h.DB.GetSetting("network_speed")
@@ -64,6 +66,7 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 		refreshMode, _ := h.DB.GetSetting("refresh_mode")
 		rules, _ := h.DB.GetSetting("rules")
 		shortcuts, _ := h.DB.GetSetting("shortcuts")
+		shortcutsEnabled, _ := h.DB.GetSetting("shortcuts_enabled")
 		showArticlePreviewImages, _ := h.DB.GetSetting("show_article_preview_images")
 		showHiddenArticles, _ := h.DB.GetSetting("show_hidden_articles")
 		startupOnBoot, _ := h.DB.GetSetting("startup_on_boot")
@@ -93,6 +96,7 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 			"ai_usage_tokens":             aiUsageTokens,
 			"auto_cleanup_enabled":        autoCleanupEnabled,
 			"auto_show_all_content":       autoShowAllContent,
+			"auto_update":                 autoUpdate,
 			"baidu_app_id":                baiduAppId,
 			"baidu_secret_key":            baiduSecretKey,
 			"close_to_tray":               closeToTray,
@@ -109,7 +113,7 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 			"hover_mark_as_read":          hoverMarkAsRead,
 			"image_gallery_enabled":       imageGalleryEnabled,
 			"language":                    language,
-			"last_article_update":         lastArticleUpdate,
+			"last_global_refresh":         lastGlobalRefresh,
 			"last_network_test":           lastNetworkTest,
 			"max_article_age_days":        maxArticleAgeDays,
 			"max_cache_size_mb":           maxCacheSizeMb,
@@ -117,6 +121,7 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 			"media_cache_enabled":         mediaCacheEnabled,
 			"media_cache_max_age_days":    mediaCacheMaxAgeDays,
 			"media_cache_max_size_mb":     mediaCacheMaxSizeMb,
+			"media_proxy_fallback":        mediaProxyFallback,
 			"network_bandwidth_mbps":      networkBandwidthMbps,
 			"network_latency_ms":          networkLatencyMs,
 			"network_speed":               networkSpeed,
@@ -132,6 +137,7 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 			"refresh_mode":                refreshMode,
 			"rules":                       rules,
 			"shortcuts":                   shortcuts,
+			"shortcuts_enabled":           shortcutsEnabled,
 			"show_article_preview_images": showArticlePreviewImages,
 			"show_hidden_articles":        showHiddenArticles,
 			"startup_on_boot":             startupOnBoot,
@@ -163,6 +169,7 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 			AIUsageTokens            string `json:"ai_usage_tokens"`
 			AutoCleanupEnabled       string `json:"auto_cleanup_enabled"`
 			AutoShowAllContent       string `json:"auto_show_all_content"`
+			AutoUpdate               string `json:"auto_update"`
 			BaiduAppId               string `json:"baidu_app_id"`
 			BaiduSecretKey           string `json:"baidu_secret_key"`
 			CloseToTray              string `json:"close_to_tray"`
@@ -179,7 +186,7 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 			HoverMarkAsRead          string `json:"hover_mark_as_read"`
 			ImageGalleryEnabled      string `json:"image_gallery_enabled"`
 			Language                 string `json:"language"`
-			LastArticleUpdate        string `json:"last_article_update"`
+			LastGlobalRefresh        string `json:"last_global_refresh"`
 			LastNetworkTest          string `json:"last_network_test"`
 			MaxArticleAgeDays        string `json:"max_article_age_days"`
 			MaxCacheSizeMb           string `json:"max_cache_size_mb"`
@@ -187,6 +194,7 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 			MediaCacheEnabled        string `json:"media_cache_enabled"`
 			MediaCacheMaxAgeDays     string `json:"media_cache_max_age_days"`
 			MediaCacheMaxSizeMb      string `json:"media_cache_max_size_mb"`
+			MediaProxyFallback       string `json:"media_proxy_fallback"`
 			NetworkBandwidthMbps     string `json:"network_bandwidth_mbps"`
 			NetworkLatencyMs         string `json:"network_latency_ms"`
 			NetworkSpeed             string `json:"network_speed"`
@@ -202,6 +210,7 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 			RefreshMode              string `json:"refresh_mode"`
 			Rules                    string `json:"rules"`
 			Shortcuts                string `json:"shortcuts"`
+			ShortcutsEnabled         string `json:"shortcuts_enabled"`
 			ShowArticlePreviewImages string `json:"show_article_preview_images"`
 			ShowHiddenArticles       string `json:"show_hidden_articles"`
 			StartupOnBoot            string `json:"startup_on_boot"`
@@ -268,6 +277,10 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 
 		if req.AutoShowAllContent != "" {
 			h.DB.SetSetting("auto_show_all_content", req.AutoShowAllContent)
+		}
+
+		if req.AutoUpdate != "" {
+			h.DB.SetSetting("auto_update", req.AutoUpdate)
 		}
 
 		if req.BaiduAppId != "" {
@@ -340,8 +353,8 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 			h.DB.SetSetting("language", req.Language)
 		}
 
-		if req.LastArticleUpdate != "" {
-			h.DB.SetSetting("last_article_update", req.LastArticleUpdate)
+		if req.LastGlobalRefresh != "" {
+			h.DB.SetSetting("last_global_refresh", req.LastGlobalRefresh)
 		}
 
 		if req.LastNetworkTest != "" {
@@ -370,6 +383,10 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 
 		if req.MediaCacheMaxSizeMb != "" {
 			h.DB.SetSetting("media_cache_max_size_mb", req.MediaCacheMaxSizeMb)
+		}
+
+		if req.MediaProxyFallback != "" {
+			h.DB.SetSetting("media_proxy_fallback", req.MediaProxyFallback)
 		}
 
 		if req.NetworkBandwidthMbps != "" {
@@ -434,6 +451,10 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 
 		if req.Shortcuts != "" {
 			h.DB.SetSetting("shortcuts", req.Shortcuts)
+		}
+
+		if req.ShortcutsEnabled != "" {
+			h.DB.SetSetting("shortcuts_enabled", req.ShortcutsEnabled)
 		}
 
 		if req.ShowArticlePreviewImages != "" {
