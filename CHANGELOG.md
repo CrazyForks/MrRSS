@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Supported email newsletter feeds via IMAP. (#313)
 
+### Changed
+
+- Incresed default max concurrency and timeout settings for feed fetching based on network speed detection. (#375)
+
 ### Fixed
 
 - Fixed the issue where python command not found error occurs. (#364)
