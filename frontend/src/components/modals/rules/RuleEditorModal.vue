@@ -152,7 +152,6 @@ function handleClose(): void {
     class="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4"
     data-modal-open="true"
     style="will-change: transform; transform: translateZ(0)"
-    @click.self="handleClose"
   >
     <div
       class="bg-bg-primary w-full max-w-2xl h-full sm:h-auto sm:max-h-[90vh] flex flex-col rounded-none sm:rounded-2xl shadow-2xl border-0 sm:border border-border overflow-hidden animate-fade-in"
@@ -171,7 +170,7 @@ function handleClose(): void {
       </div>
 
       <!-- Content -->
-      <div class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+      <div class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 scroll-smooth">
         <!-- Rule Name -->
         <div class="space-y-2">
           <label class="block text-sm font-medium">{{ t('ruleName') }}</label>
@@ -304,13 +303,16 @@ function handleClose(): void {
 
 .input-field {
   @apply p-2 border border-border rounded-md bg-bg-primary text-text-primary text-sm focus:border-accent focus:outline-none transition-colors;
+  height: 38px;
 }
 .select-field {
   @apply p-2 border border-border rounded-md bg-bg-primary text-text-primary text-sm focus:border-accent focus:outline-none transition-colors cursor-pointer;
+  height: 38px;
 }
 .date-field {
   @apply p-2 border border-border rounded-md bg-bg-primary text-text-primary text-sm focus:border-accent focus:outline-none transition-colors cursor-pointer;
   color-scheme: light dark;
+  height: 38px;
 }
 .btn-primary {
   @apply bg-accent text-white border-none px-5 py-2.5 rounded-lg cursor-pointer font-semibold hover:bg-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed;

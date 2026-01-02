@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { PhFolder, PhFolderDashed, PhCaretDown } from '@phosphor-icons/vue';
+import { useI18n } from 'vue-i18n';
 import type { Feed } from '@/types/models';
 import type { DropPreview } from '@/composables/ui/useDragDrop';
 import SidebarFeed from './SidebarFeed.vue';
+
+const { t } = useI18n();
 
 interface TreeNode {
   _feeds: Feed[];
@@ -145,6 +148,16 @@ const checkIsOpen = (path: string) => {
   }
   return false;
 };
+
+// Check if this category is exclusively for FreshRSS feeds
+// Only show the icon if ALL feeds in this category are from FreshRSS
+const isFreshRSSCategory = computed(() => {
+  if (!props.feeds || props.feeds.length === 0) {
+    return false;
+  }
+  // Only show FreshRSS icon if ALL feeds in this category are FreshRSS sources
+  return props.feeds.every((feed) => feed.is_freshrss_source);
+});
 </script>
 
 <template>
@@ -163,6 +176,15 @@ const checkIsOpen = (path: string) => {
         <PhFolderDashed v-if="isUncategorized" :size="20" />
         <PhFolder v-else :size="20" :weight="'fill'" />
         {{ name }}
+        <!-- FreshRSS indicator on category -->
+        <!-- Only show if ALL feeds in this category are from FreshRSS -->
+        <img
+          v-if="isFreshRSSCategory"
+          src="/assets/plugin_icons/freshrss.svg"
+          class="w-3.5 h-3.5 shrink-0"
+          :title="t('freshRSSSyncedFeed')"
+          alt="FreshRSS"
+        />
       </span>
       <span v-if="unreadCount > 0" class="unread-badge mr-1">{{ unreadCount }}</span>
       <PhCaretDown

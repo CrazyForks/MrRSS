@@ -34,8 +34,11 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 		deeplEndpoint, _ := h.DB.GetSetting("deepl_endpoint")
 		defaultViewMode, _ := h.DB.GetSetting("default_view_mode")
 		freshrssApiPassword, _ := h.DB.GetEncryptedSetting("freshrss_api_password")
+		freshrssAutoSyncInterval, _ := h.DB.GetSetting("freshrss_auto_sync_interval")
 		freshrssEnabled, _ := h.DB.GetSetting("freshrss_enabled")
+		freshrssLastSyncTime, _ := h.DB.GetSetting("freshrss_last_sync_time")
 		freshrssServerUrl, _ := h.DB.GetSetting("freshrss_server_url")
+		freshrssSyncOnStartup, _ := h.DB.GetSetting("freshrss_sync_on_startup")
 		freshrssUsername, _ := h.DB.GetSetting("freshrss_username")
 		fullTextFetchEnabled, _ := h.DB.GetSetting("full_text_fetch_enabled")
 		googleTranslateEndpoint, _ := h.DB.GetSetting("google_translate_endpoint")
@@ -64,6 +67,7 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 		proxyType, _ := h.DB.GetSetting("proxy_type")
 		proxyUsername, _ := h.DB.GetEncryptedSetting("proxy_username")
 		refreshMode, _ := h.DB.GetSetting("refresh_mode")
+		retryTimeoutSeconds, _ := h.DB.GetSetting("retry_timeout_seconds")
 		rules, _ := h.DB.GetSetting("rules")
 		shortcuts, _ := h.DB.GetSetting("shortcuts")
 		shortcutsEnabled, _ := h.DB.GetSetting("shortcuts_enabled")
@@ -105,8 +109,11 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 			"deepl_endpoint":              deeplEndpoint,
 			"default_view_mode":           defaultViewMode,
 			"freshrss_api_password":       freshrssApiPassword,
+			"freshrss_auto_sync_interval": freshrssAutoSyncInterval,
 			"freshrss_enabled":            freshrssEnabled,
+			"freshrss_last_sync_time":     freshrssLastSyncTime,
 			"freshrss_server_url":         freshrssServerUrl,
+			"freshrss_sync_on_startup":    freshrssSyncOnStartup,
 			"freshrss_username":           freshrssUsername,
 			"full_text_fetch_enabled":     fullTextFetchEnabled,
 			"google_translate_endpoint":   googleTranslateEndpoint,
@@ -135,6 +142,7 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 			"proxy_type":                  proxyType,
 			"proxy_username":              proxyUsername,
 			"refresh_mode":                refreshMode,
+			"retry_timeout_seconds":       retryTimeoutSeconds,
 			"rules":                       rules,
 			"shortcuts":                   shortcuts,
 			"shortcuts_enabled":           shortcutsEnabled,
@@ -178,8 +186,11 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 			DeeplEndpoint            string `json:"deepl_endpoint"`
 			DefaultViewMode          string `json:"default_view_mode"`
 			FreshRSSAPIPassword      string `json:"freshrss_api_password"`
+			FreshRSSAutoSyncInterval string `json:"freshrss_auto_sync_interval"`
 			FreshRSSEnabled          string `json:"freshrss_enabled"`
+			FreshRSSLastSyncTime     string `json:"freshrss_last_sync_time"`
 			FreshRSSServerUrl        string `json:"freshrss_server_url"`
+			FreshRSSSyncOnStartup    string `json:"freshrss_sync_on_startup"`
 			FreshRSSUsername         string `json:"freshrss_username"`
 			FullTextFetchEnabled     string `json:"full_text_fetch_enabled"`
 			GoogleTranslateEndpoint  string `json:"google_translate_endpoint"`
@@ -208,6 +219,7 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 			ProxyType                string `json:"proxy_type"`
 			ProxyUsername            string `json:"proxy_username"`
 			RefreshMode              string `json:"refresh_mode"`
+			RetryTimeoutSeconds      string `json:"retry_timeout_seconds"`
 			Rules                    string `json:"rules"`
 			Shortcuts                string `json:"shortcuts"`
 			ShortcutsEnabled         string `json:"shortcuts_enabled"`
@@ -321,12 +333,24 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if req.FreshRSSAutoSyncInterval != "" {
+			h.DB.SetSetting("freshrss_auto_sync_interval", req.FreshRSSAutoSyncInterval)
+		}
+
 		if req.FreshRSSEnabled != "" {
 			h.DB.SetSetting("freshrss_enabled", req.FreshRSSEnabled)
 		}
 
+		if req.FreshRSSLastSyncTime != "" {
+			h.DB.SetSetting("freshrss_last_sync_time", req.FreshRSSLastSyncTime)
+		}
+
 		if req.FreshRSSServerUrl != "" {
 			h.DB.SetSetting("freshrss_server_url", req.FreshRSSServerUrl)
+		}
+
+		if req.FreshRSSSyncOnStartup != "" {
+			h.DB.SetSetting("freshrss_sync_on_startup", req.FreshRSSSyncOnStartup)
 		}
 
 		if req.FreshRSSUsername != "" {
@@ -443,6 +467,10 @@ func HandleSettings(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 
 		if req.RefreshMode != "" {
 			h.DB.SetSetting("refresh_mode", req.RefreshMode)
+		}
+
+		if req.RetryTimeoutSeconds != "" {
+			h.DB.SetSetting("retry_timeout_seconds", req.RetryTimeoutSeconds)
 		}
 
 		if req.Rules != "" {

@@ -175,6 +175,12 @@ func (tm *TaskManager) MarkCompleted() {
 // AddToQueueHead adds a task to the queue head (highest priority)
 // Used for: manual add, manual refresh
 func (tm *TaskManager) AddToQueueHead(ctx context.Context, feed models.Feed, reason TaskReason) {
+	// Skip FreshRSS feeds - they are refreshed via sync, not standard refresh
+	if feed.IsFreshRSSSource {
+		log.Printf("Skipping FreshRSS feed %s (refreshed via sync only)", feed.Title)
+		return
+	}
+
 	tm.stateMutex.RLock()
 	isStopped := tm.isStopped
 	tm.stateMutex.RUnlock()
@@ -234,6 +240,12 @@ func (tm *TaskManager) AddToQueueHead(ctx context.Context, feed models.Feed, rea
 // AddToQueueTail adds a task to the queue tail (lowest priority)
 // Used for: scheduled refresh with custom interval
 func (tm *TaskManager) AddToQueueTail(ctx context.Context, feed models.Feed, reason TaskReason) {
+	// Skip FreshRSS feeds - they are refreshed via sync, not standard refresh
+	if feed.IsFreshRSSSource {
+		log.Printf("Skipping FreshRSS feed %s (refreshed via sync only)", feed.Title)
+		return
+	}
+
 	tm.stateMutex.RLock()
 	isStopped := tm.isStopped
 	tm.stateMutex.RUnlock()
@@ -299,6 +311,25 @@ func (tm *TaskManager) AddGlobalRefresh(ctx context.Context, feeds []models.Feed
 	if isStopped {
 		return
 	}
+
+	if len(feeds) == 0 {
+		return
+	}
+
+	// Filter out FreshRSS feeds - they are refreshed via sync, not standard refresh
+	filteredFeeds := make([]models.Feed, 0, len(feeds))
+	skippedCount := 0
+	for _, feed := range feeds {
+		if feed.IsFreshRSSSource {
+			skippedCount++
+		} else {
+			filteredFeeds = append(filteredFeeds, feed)
+		}
+	}
+	if skippedCount > 0 {
+		log.Printf("Filtered out %d FreshRSS feeds from global refresh (refreshed via sync only)", skippedCount)
+	}
+	feeds = filteredFeeds
 
 	if len(feeds) == 0 {
 		return
@@ -443,8 +474,11 @@ func (tm *TaskManager) ExecuteImmediately(ctx context.Context, feed models.Feed)
 		var err error
 		var success bool
 
-		// First attempt: 5 second timeout
-		ctx1, cancel1 := context.WithTimeout(ctx, 5*time.Second)
+		// Get retry timeout from settings
+		retryTimeoutSeconds := tm.getRetryTimeout()
+
+		// First attempt: 10 second timeout
+		ctx1, cancel1 := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel1()
 
 		err = tm.fetcher.fetchFeedWithContext(ctx1, task.Feed)
@@ -453,11 +487,11 @@ func (tm *TaskManager) ExecuteImmediately(ctx context.Context, feed models.Feed)
 			log.Printf("Successfully fetched feed: %s (immediate, first attempt)", task.Feed.Title)
 		}
 
-		// Second attempt: 10 second timeout if first attempt failed
+		// Second attempt: use configured retry timeout if first attempt failed
 		if !success && err != nil {
-			log.Printf("First attempt failed for %s: %v, retrying with 10s timeout", task.Feed.Title, err)
+			log.Printf("First attempt failed for %s: %v, retrying with %v timeout", task.Feed.Title, err, retryTimeoutSeconds)
 
-			ctx2, cancel2 := context.WithTimeout(ctx, 10*time.Second)
+			ctx2, cancel2 := context.WithTimeout(ctx, retryTimeoutSeconds)
 			defer cancel2()
 
 			err = tm.fetcher.fetchFeedWithContext(ctx2, task.Feed)
@@ -589,22 +623,27 @@ func (tm *TaskManager) processTask(ctx context.Context, task *RefreshTask) {
 	var err error
 	var success bool
 
-	// First attempt: 5 second timeout
-	ctx1, cancel1 := context.WithTimeout(ctx, 5*time.Second)
+	// Get retry timeout from settings
+	retryTimeoutSeconds := tm.getRetryTimeout()
+
+	// First attempt: 60 second timeout (increased from 10s for large feeds)
+	// Many feeds have 100+ articles, and processing can take time
+	ctx1, cancel1 := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel1()
 
+	log.Printf("Starting first attempt to fetch feed: %s (timeout: 60s)", task.Feed.Title)
 	err = tm.fetcher.fetchFeedWithContext(ctx1, task.Feed)
 	if err == nil {
 		success = true
 		log.Printf("Successfully fetched feed: %s (first attempt)", task.Feed.Title)
 	}
 
-	// Second attempt: 10 second timeout if first attempt failed
+	// Second attempt: use configured retry timeout if first attempt failed
 	if !success && err != nil {
-		log.Printf("First attempt failed for %s: %v, retrying with 10s timeout", task.Feed.Title, err)
+		log.Printf("First attempt failed for %s: %v, retrying with %v timeout", task.Feed.Title, err, retryTimeoutSeconds)
 		tm.logOperation("RT", task.Feed.Title)
 
-		ctx2, cancel2 := context.WithTimeout(ctx, 10*time.Second)
+		ctx2, cancel2 := context.WithTimeout(ctx, retryTimeoutSeconds)
 		defer cancel2()
 
 		err = tm.fetcher.fetchFeedWithContext(ctx2, task.Feed)
@@ -901,6 +940,22 @@ func parseInt(s string) (int, error) {
 	var i int
 	_, err := fmt.Sscanf(s, "%d", &i)
 	return i, err
+}
+
+// getRetryTimeout retrieves the retry timeout from settings
+// Returns the configured timeout in seconds (default 60 seconds)
+func (tm *TaskManager) getRetryTimeout() time.Duration {
+	retryTimeoutStr, err := tm.fetcher.db.GetSetting("retry_timeout_seconds")
+	if err != nil || retryTimeoutStr == "" {
+		return 60 * time.Second // Default to 60 seconds
+	}
+
+	retryTimeout, err := parseInt(retryTimeoutStr)
+	if err != nil || retryTimeout <= 0 {
+		return 60 * time.Second // Default to 60 seconds if invalid
+	}
+
+	return time.Duration(retryTimeout) * time.Second
 }
 
 // initTaskLog initializes the task log file

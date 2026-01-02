@@ -26,6 +26,11 @@ const { t, locale } = useI18n();
 const { showPreviewImages } = useShowPreviewImages();
 const store = useAppStore();
 
+// Translation function wrapper for formatDate
+const formatDateWithI18n = (dateStr: string): string => {
+  return formatDateUtil(dateStr, locale.value, t);
+};
+
 const mediaCacheEnabled = ref(false);
 const hoverMarkAsRead = ref(false);
 let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -41,10 +46,6 @@ const imageUrl = computed(() => {
 const shouldShowImage = computed(() => {
   return showPreviewImages.value && props.article.image_url;
 });
-
-function formatDate(dateStr: string): string {
-  return formatDateUtil(dateStr, locale.value === 'zh-CN' ? 'zh-CN' : 'en-US');
-}
 
 function handleImageError(event: Event) {
   const target = event.target as HTMLImageElement;
@@ -182,7 +183,15 @@ onUnmounted(() => {
             class="text-yellow-500 sm:w-[18px] sm:h-[18px]"
             weight="fill"
           />
-          <span class="whitespace-nowrap">{{ formatDate(article.published_at) }}</span>
+          <!-- FreshRSS indicator -->
+          <img
+            v-if="article.freshrss_item_id"
+            src="/assets/plugin_icons/freshrss.svg"
+            class="w-3.5 h-3.5 shrink-0 sm:w-4 sm:h-4"
+            :title="t('freshRSSSyncedFeed')"
+            alt="FreshRSS"
+          />
+          <span class="whitespace-nowrap">{{ formatDateWithI18n(article.published_at) }}</span>
         </div>
       </div>
     </div>
@@ -193,7 +202,7 @@ onUnmounted(() => {
 @reference "../../style.css";
 
 .article-card {
-  @apply p-2 sm:p-3 border-b border-border cursor-pointer transition-colors flex gap-2 sm:gap-3 relative;
+  @apply p-2 sm:p-3 border-b border-border cursor-pointer transition-colors flex gap-2 sm:gap-3 relative border-l-2 sm:border-l-[3px] border-l-transparent;
 }
 
 .article-card:hover {
@@ -201,7 +210,7 @@ onUnmounted(() => {
 }
 
 .article-card.active {
-  @apply bg-bg-tertiary border-l-2 sm:border-l-[3px] border-l-accent;
+  @apply bg-bg-tertiary border-l-accent;
 }
 
 .article-card.read h4 {

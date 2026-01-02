@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia';
 import { ref, type Ref } from 'vue';
-import { useI18n } from 'vue-i18n';
 import type { Article, Feed, UnreadCounts, RefreshProgress } from '@/types/models';
 
 export type Filter = 'all' | 'unread' | 'favorites' | 'readLater' | 'imageGallery' | '';
@@ -47,8 +46,6 @@ export interface AppActions {
 }
 
 export const useAppStore = defineStore('app', () => {
-  const { t } = useI18n();
-
   // State
   const articles = ref<Article[]>([]);
   const feeds = ref<Feed[]>([]);
@@ -158,12 +155,29 @@ export const useAppStore = defineStore('app', () => {
 
   async function fetchFeeds(): Promise<void> {
     try {
+      console.log('[App Store] Fetching feeds...');
       const res = await fetch('/api/feeds');
-      const data: Feed[] = (await res.json()) || [];
+      console.log('[App Store] Response status:', res.status);
+
+      const text = await res.text();
+      console.log('[App Store] Response length:', text.length);
+
+      let data;
+      try {
+        data = JSON.parse(text) || [];
+      } catch (e) {
+        console.error('[App Store] JSON parse error:', e);
+        console.error('[App Store] Response text (first 500 chars):', text.substring(0, 500));
+        throw e;
+      }
+
       feeds.value = data;
+      console.log('[App Store] Feeds loaded successfully, count:', data.length);
+
       // Fetch unread counts after fetching feeds
       await fetchUnreadCounts();
-    } catch {
+    } catch (e) {
+      console.error('[App Store] Fetch feeds error:', e);
       feeds.value = [];
     }
   }
@@ -240,9 +254,13 @@ export const useAppStore = defineStore('app', () => {
 
     theme.value = actualTheme;
 
+    // Apply to both html and body for consistency
+    const htmlElement = document.documentElement;
     if (actualTheme === 'dark') {
+      htmlElement.classList.add('dark-mode');
       document.body.classList.add('dark-mode');
     } else {
+      htmlElement.classList.remove('dark-mode');
       document.body.classList.remove('dark-mode');
     }
   }
@@ -264,11 +282,44 @@ export const useAppStore = defineStore('app', () => {
   async function refreshFeeds(): Promise<void> {
     refreshProgress.value.isRunning = true;
     try {
+      // First, trigger standard refresh
       await fetch('/api/refresh', { method: 'POST' });
-      // Immediately fetch progress once before starting polling
+
+      // Also trigger FreshRSS sync if enabled
+      try {
+        await fetch('/api/freshrss/sync', { method: 'POST' });
+      } catch (e) {
+        // If FreshRSS sync fails, it's okay - just log it
+        console.log('FreshRSS sync triggered (may not be enabled)');
+      }
+
+      // Wait a moment to check if refresh is actually running
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      // Check progress to see if there are actually any tasks
+      const progressRes = await fetch('/api/progress');
+      const progressData = await progressRes.json();
+
+      // If no tasks are running, mark as completed immediately
+      if (!progressData.is_running) {
+        console.log('No feeds to refresh (all feeds are FreshRSS or no feeds exist)');
+        refreshProgress.value.isRunning = false;
+
+        // Still refresh feeds and articles to get any updates from FreshRSS sync
+        fetchFeeds();
+        fetchArticles();
+        fetchUnreadCounts();
+
+        // Notify components that settings have been updated
+        window.dispatchEvent(new CustomEvent('settings-updated'));
+        return;
+      }
+
+      // If tasks are running, proceed with normal progress polling
       await fetchProgressOnce();
       pollProgress();
-    } catch {
+    } catch (e) {
+      console.error('Error refreshing feeds:', e);
       refreshProgress.value.isRunning = false;
     }
   }
@@ -355,6 +406,72 @@ export const useAppStore = defineStore('app', () => {
         refreshProgress.value.isRunning = false;
       }
     }, 500);
+  }
+
+  // FreshRSS sync status monitoring
+  let freshrssPollInterval: ReturnType<typeof setInterval> | null = null;
+  let lastKnownFreshRSSSyncTime: string | null = null;
+
+  async function startFreshRSSStatusPolling(): Promise<void> {
+    // Stop any existing polling
+    if (freshrssPollInterval) {
+      clearInterval(freshrssPollInterval);
+    }
+
+    // Check if FreshRSS is enabled
+    try {
+      const res = await fetch('/api/settings');
+      if (!res.ok) return;
+      const settings = await res.json();
+
+      if (settings.freshrss_enabled !== 'true') {
+        return; // FreshRSS not enabled, don't start polling
+      }
+
+      // Initialize last known sync time
+      const statusRes = await fetch('/api/freshrss/status');
+      if (statusRes.ok) {
+        const statusData = await statusRes.json();
+        lastKnownFreshRSSSyncTime = statusData.last_sync_time;
+      }
+    } catch (e) {
+      console.error('[FreshRSS] Error checking status:', e);
+      return;
+    }
+
+    // Start polling every 5 seconds
+    freshrssPollInterval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/freshrss/status');
+        if (!res.ok) return;
+
+        const data = await res.json();
+
+        // Check if sync time has updated (sync completed)
+        if (
+          lastKnownFreshRSSSyncTime !== null &&
+          data.last_sync_time !== lastKnownFreshRSSSyncTime
+        ) {
+          console.log('[FreshRSS] Sync completed detected, refreshing data...');
+          // Refresh all data
+          await fetchFeeds();
+          await fetchArticles();
+          await fetchUnreadCounts();
+        }
+
+        // Update known sync time
+        lastKnownFreshRSSSyncTime = data.last_sync_time;
+      } catch (e) {
+        console.error('[FreshRSS] Error polling status:', e);
+      }
+    }, 5000); // Poll every 5 seconds
+  }
+
+  function stopFreshRSSStatusPolling(): void {
+    if (freshrssPollInterval) {
+      clearInterval(freshrssPollInterval);
+      freshrssPollInterval = null;
+    }
   }
 
   async function checkForAppUpdates(): Promise<void> {
@@ -497,6 +614,8 @@ export const useAppStore = defineStore('app', () => {
     initTheme,
     refreshFeeds,
     pollProgress,
+    startFreshRSSStatusPolling,
+    stopFreshRSSStatusPolling,
     checkForAppUpdates,
     startAutoRefresh,
     toggleShowOnlyUnread,

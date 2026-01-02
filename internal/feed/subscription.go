@@ -41,36 +41,64 @@ func sanitizeFeedXML(xmlContent string) string {
 
 // fetchAndSanitizeFeed fetches feed content and sanitizes it before parsing
 func (f *Fetcher) fetchAndSanitizeFeed(ctx context.Context, feedURL string) (string, error) {
+	debugTimer := NewDebugTimer(fmt.Sprintf("FetchSanitize-%s", feedURL), shouldEnableDebugLogging(feedURL))
+	defer debugTimer.End()
+
+	debugTimer.Stage("Starting fetchAndSanitizeFeed")
+
 	// Use the feed's HTTP client to fetch content
+	debugTimer.LogWithTime("Getting HTTP client")
 	httpClient, err := f.getHTTPClient(models.Feed{URL: feedURL})
 	if err != nil {
+		debugTimer.LogWithTime("Failed to create HTTP client: %v", err)
 		return "", fmt.Errorf("failed to create HTTP client: %w", err)
 	}
+	debugTimer.Stage("HTTP client created")
 
+	debugTimer.LogWithTime("Creating HTTP request")
 	req, err := http.NewRequestWithContext(ctx, "GET", feedURL, nil)
 	if err != nil {
+		debugTimer.LogWithTime("Failed to create request: %v", err)
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
+	debugTimer.Stage("Request created")
 
+	// Add user agent to avoid being blocked
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+	req.Header.Set("Accept", "application/rss+xml, application/xml, text/xml, */*")
+
+	debugTimer.LogWithTime("Sending HTTP request to %s", feedURL)
 	resp, err := httpClient.Do(req)
 	if err != nil {
+		debugTimer.LogWithTime("HTTP request failed: %v", err)
 		return "", fmt.Errorf("failed to fetch feed: %w", err)
 	}
 	defer resp.Body.Close()
+	debugTimer.Stage("HTTP request completed")
 
 	if resp.StatusCode != http.StatusOK {
+		debugTimer.LogWithTime("HTTP status not OK: %d", resp.StatusCode)
 		return "", fmt.Errorf("HTTP %d: %s", resp.StatusCode, resp.Status)
 	}
 
+	debugTimer.LogWithTime("Reading response body")
+	// Use io.ReadAll but with better transport configuration
+	// The real fix is in the HTTP transport configuration (HTTP/2 disabled, buffers tuned)
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		debugTimer.LogWithTime("Failed to read body: %v", err)
 		return "", fmt.Errorf("failed to read response body: %w", err)
 	}
+	debugTimer.LogWithTime("Read %d bytes from response", len(body))
+	debugTimer.Stage("Body read complete")
 
 	xmlContent := string(body)
 
 	// Sanitize the XML to remove problematic links
+	debugTimer.LogWithTime("Sanitizing XML")
 	cleanedXML := sanitizeFeedXML(xmlContent)
+	debugTimer.LogWithTime("Sanitization complete, length=%d", len(cleanedXML))
+	debugTimer.Stage("Sanitization complete")
 
 	return cleanedXML, nil
 }
@@ -387,7 +415,36 @@ func (f *Fetcher) ParseFeedWithFeed(ctx context.Context, feed *models.Feed, prio
 
 // parseFeedWithFeedInternal does the actual parsing work
 func (f *Fetcher) parseFeedWithFeedInternal(ctx context.Context, feed *models.Feed, priority bool) (*gofeed.Feed, error) {
+	// Enable debug timing for problematic feeds
+	debugTimer := NewDebugTimer(fmt.Sprintf("Feed-%s", feed.URL), shouldEnableDebugLogging(feed.URL))
+	defer debugTimer.End()
+
+	debugTimer.Stage("Starting parseFeedWithFeedInternal")
 	utils.DebugLog("parseFeedWithFeedInternal: Starting parsing for URL: %s, scriptPath: %s, type: %s, priority: %v", feed.URL, feed.ScriptPath, feed.Type, priority)
+
+	// Check if this is an email-based newsletter feed
+	if feed.Type == "email" {
+		utils.DebugLog("parseFeedWithFeedInternal: Using email fetching for newsletter: %s", feed.EmailAddress)
+		if f.emailFetcher == nil {
+			return nil, fmt.Errorf("email fetcher not initialized")
+		}
+
+		// Fetch emails from IMAP
+		items, err := f.emailFetcher.FetchEmails(ctx, feed)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch emails: %w", err)
+		}
+
+		// Create gofeed.Feed from email items
+		parsedFeed := &gofeed.Feed{
+			Title:       feed.Title,
+			Link:        feed.URL,
+			Description: feed.Description,
+			Items:       items,
+		}
+
+		return parsedFeed, nil
+	}
 
 	if feed.ScriptPath != "" {
 		utils.DebugLog("parseFeedWithFeedInternal: Using script execution for %s", feed.ScriptPath)
@@ -409,6 +466,7 @@ func (f *Fetcher) parseFeedWithFeedInternal(ctx context.Context, feed *models.Fe
 
 	// Check if this is an XPath-based feed
 	if feed.Type == "HTML+XPath" || feed.Type == "XML+XPath" {
+		debugTimer.Stage("XPath parsing path")
 		utils.DebugLog("parseFeedWithFeedInternal: Using XPath parsing for type: %s", feed.Type)
 		// For high priority requests, use shorter timeout
 		xpathCtx := ctx
@@ -421,6 +479,7 @@ func (f *Fetcher) parseFeedWithFeedInternal(ctx context.Context, feed *models.Fe
 		return f.parseFeedWithXPath(xpathCtx, feed)
 	}
 
+	debugTimer.Stage("Traditional URL fetching")
 	utils.DebugLog("parseFeedWithFeedInternal: Using traditional URL-based fetching for %s", feed.URL)
 	// Use traditional URL-based fetching
 	// For high priority requests, use shorter timeout
@@ -432,29 +491,41 @@ func (f *Fetcher) parseFeedWithFeedInternal(ctx context.Context, feed *models.Fe
 	}
 
 	// Try fetching and sanitizing the feed first to handle file:// URLs in atom:link
+	debugTimer.LogWithTime("About to call fetchAndSanitizeFeed")
 	utils.DebugLog("parseFeedWithFeedInternal: Attempting to fetch and sanitize feed for %s", feed.URL)
 	cleanedXML, sanitizeErr := f.fetchAndSanitizeFeed(fetchCtx, feed.URL)
+	debugTimer.LogWithTime("fetchAndSanitizeFeed completed, err=%v", sanitizeErr)
+
 	if sanitizeErr == nil {
+		debugTimer.Stage("Parsing sanitized XML")
 		// Successfully fetched and sanitized, try parsing
 		parser := gofeed.NewParser()
 		// Use the same HTTP client if available (for proxy settings, etc.)
 		if gofeedParser, ok := f.fp.(*gofeed.Parser); ok {
 			parser.Client = gofeedParser.Client
 		}
+		debugTimer.LogWithTime("About to parse sanitized XML string, length=%d", len(cleanedXML))
 		parsedFeed, err := parser.ParseString(cleanedXML)
+		debugTimer.LogWithTime("ParseString completed, err=%v", err)
+
 		if err == nil {
+			debugTimer.Stage("Successfully parsed sanitized feed")
 			utils.DebugLog("parseFeedWithFeedInternal: Successfully parsed sanitized feed for %s", feed.URL)
 			return parsedFeed, nil
 		}
 		utils.DebugLog("parseFeedWithFeedInternal: Parsing sanitized feed failed: %v", err)
 		// Fall through to standard parsing
 	} else {
+		debugTimer.LogWithTime("Sanitization failed, will try standard parsing")
 		utils.DebugLog("parseFeedWithFeedInternal: Sanitization failed: %v", sanitizeErr)
 	}
 
 	// Fallback: Try standard parsing first
+	debugTimer.Stage("Standard parsing via ParseURLWithContext")
+	debugTimer.LogWithTime("About to call ParseURLWithContext")
 	utils.DebugLog("parseFeedWithFeedInternal: Attempting standard RSS parsing for %s", feed.URL)
 	parsedFeed, err := f.fp.ParseURLWithContext(feed.URL, fetchCtx)
+	debugTimer.LogWithTime("ParseURLWithContext completed, err=%v", err)
 	if err != nil {
 		utils.DebugLog("parseFeedWithFeedInternal: Standard RSS parsing failed: %v", err)
 
@@ -1126,4 +1197,63 @@ func (f *Fetcher) parseFeedWithJavaScript(ctx context.Context, feedURL string, p
 
 	utils.DebugLog("parseFeedWithJavaScript: RSS/Atom parsing succeeded, feed title: %s, items count: %d", feed.Title, len(feed.Items))
 	return feed, nil
+}
+
+// AddEmailSubscription adds a new newsletter subscription via IMAP email
+func (f *Fetcher) AddEmailSubscription(emailAddress, imapServer, username, password, category, customTitle, folder string, imapPort int) (int64, error) {
+	utils.DebugLog("AddEmailSubscription: Starting to add newsletter subscription for: %s", emailAddress)
+
+	// Validate required fields
+	if emailAddress == "" {
+		return 0, fmt.Errorf("email address is required")
+	}
+	if imapServer == "" {
+		return 0, fmt.Errorf("IMAP server is required")
+	}
+	if username == "" {
+		return 0, fmt.Errorf("username is required")
+	}
+	if password == "" {
+		return 0, fmt.Errorf("password is required")
+	}
+
+	// Set default IMAP port if not specified
+	if imapPort == 0 {
+		imapPort = 993
+	}
+
+	// Set default folder if not specified
+	if folder == "" {
+		folder = "INBOX"
+	}
+
+	// Create feed object for email newsletter
+	title := customTitle
+	if title == "" {
+		title = emailAddress
+	}
+
+	feed := &models.Feed{
+		Title:           title,
+		URL:             "email://" + emailAddress,
+		Description:     fmt.Sprintf("Newsletter subscription for %s", emailAddress),
+		Category:        category,
+		Type:            "email",
+		EmailAddress:    emailAddress,
+		EmailIMAPServer: imapServer,
+		EmailIMAPPort:   imapPort,
+		EmailUsername:   username,
+		EmailPassword:   password,
+		EmailFolder:     folder,
+		EmailLastUID:    0,
+	}
+
+	// Add to database
+	feedID, err := f.db.AddFeed(feed)
+	if err != nil {
+		return 0, fmt.Errorf("failed to add email subscription: %w", err)
+	}
+
+	utils.DebugLog("AddEmailSubscription: Successfully added newsletter subscription with ID: %d", feedID)
+	return feedID, nil
 }

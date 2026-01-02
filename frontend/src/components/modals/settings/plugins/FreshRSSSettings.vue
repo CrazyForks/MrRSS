@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { PhLink, PhUser, PhKey, PhTestTube, PhArrowClockwise } from '@phosphor-icons/vue';
+import { PhLink, PhUser, PhKey, PhArrowClockwise, PhCloudCheck } from '@phosphor-icons/vue';
 import type { SettingsData } from '@/types/settings';
+import { useAppStore } from '@/stores/app';
 
 const { t } = useI18n();
+const appStore = useAppStore();
 
 interface Props {
   settings: SettingsData;
@@ -14,9 +16,58 @@ const props = defineProps<Props>();
 
 const emit = defineEmits<{
   'update:settings': [settings: SettingsData];
+  'settings-changed': [];
 }>();
 
 const isSyncing = ref(false);
+const syncStatus = ref<{
+  pending_changes: number;
+  failed_items: number;
+  last_sync_time: string | null;
+}>({
+  pending_changes: 0,
+  failed_items: 0,
+  last_sync_time: null,
+});
+
+let statusPollInterval: ReturnType<typeof setInterval> | null = null;
+
+// Fetch sync status
+async function fetchSyncStatus() {
+  try {
+    const response = await fetch('/api/freshrss/status');
+    if (response.ok) {
+      const data = await response.json();
+      syncStatus.value = data;
+    }
+  } catch (error) {
+    console.error('Failed to fetch sync status:', error);
+  }
+}
+
+// Start polling for status updates (only for UI display in settings)
+function startStatusPolling() {
+  fetchSyncStatus();
+  statusPollInterval = setInterval(fetchSyncStatus, 5000); // Poll every 5 seconds
+}
+
+// Stop polling
+function stopStatusPolling() {
+  if (statusPollInterval) {
+    clearInterval(statusPollInterval);
+    statusPollInterval = null;
+  }
+}
+
+onMounted(() => {
+  if (props.settings.freshrss_enabled) {
+    startStatusPolling();
+  }
+});
+
+onUnmounted(() => {
+  stopStatusPolling();
+});
 
 // Sync with FreshRSS server
 async function syncNow() {
@@ -31,15 +82,82 @@ async function syncNow() {
     });
 
     if (response.ok) {
-      window.showToast(t('syncCompleted'), 'success');
+      window.showToast(t('freshrssSyncStarted'), 'success');
+      // Sync status polling will detect completion and refresh data automatically
     } else {
-      throw new Error(t('syncFailed'));
+      throw new Error(t('freshrssSyncFailed'));
     }
   } catch (error) {
-    window.showToast(error instanceof Error ? error.message : t('syncFailed'), 'error');
+    window.showToast(error instanceof Error ? error.message : t('freshrssSyncFailed'), 'error');
   } finally {
     isSyncing.value = false;
   }
+}
+
+// Watch for FreshRSS enabled changes and refresh data accordingly
+watch(
+  () => props.settings.freshrss_enabled,
+  async (newVal, oldVal) => {
+    // Convert string values to boolean for comparison
+    const oldBool = oldVal === 'true' || oldVal === true;
+    const newBool = newVal === 'true' || newVal === true;
+
+    // When FreshRSS is disabled, refresh feeds and unread counts
+    if (oldBool && !newBool) {
+      // FreshRSS was just disabled, cleanup will happen on backend
+      // Stop global polling
+      appStore.stopFreshRSSStatusPolling();
+      // Wait a bit for cleanup to complete, then refresh
+      setTimeout(async () => {
+        await appStore.fetchFeeds();
+        await appStore.fetchArticles();
+        await appStore.fetchUnreadCounts();
+        stopStatusPolling();
+      }, 1000);
+    } else if (!oldBool && newBool) {
+      // FreshRSS was just enabled, start global polling
+      await appStore.startFreshRSSStatusPolling();
+      startStatusPolling(); // Also start local polling for UI display
+      emit('settings-changed');
+    }
+  }
+);
+
+// Watch for FreshRSS connection settings changes
+watch(
+  () => [
+    props.settings.freshrss_server_url,
+    props.settings.freshrss_username,
+    props.settings.freshrss_api_password,
+  ],
+  async () => {
+    if (props.settings.freshrss_enabled) {
+      // Settings changed while FreshRSS is enabled
+      // Backend will handle cleanup and resync
+      // Wait for cleanup and resync to complete, then refresh
+      setTimeout(async () => {
+        await appStore.fetchFeeds();
+        await appStore.fetchArticles();
+        await appStore.fetchUnreadCounts();
+      }, 3000); // Wait longer for cleanup + resync
+    }
+  }
+);
+
+// Format sync time
+function formatSyncTime(timeStr: string | null): string {
+  if (!timeStr) return t('freshrssNever');
+  const date = new Date(timeStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+
+  if (diffMins < 1) return t('freshrssJustNow');
+  if (diffMins < 60) return t('freshrssMinsAgo', { n: diffMins });
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return t('freshrssHoursAgo', { n: diffHours });
+  const diffDays = Math.floor(diffHours / 24);
+  return t('freshrssDaysAgo', { n: diffDays });
 }
 </script>
 
@@ -162,28 +280,27 @@ async function syncNow() {
       />
     </div>
 
-    <!-- Connection Test and Sync Buttons -->
+    <!-- Sync Button -->
     <div class="sub-setting-item">
       <div class="flex-1 flex items-center sm:items-start gap-2 sm:gap-3 min-w-0">
-        <PhTestTube :size="20" class="text-text-secondary mt-0.5 shrink-0 sm:w-6 sm:h-6" />
+        <PhCloudCheck :size="20" class="text-text-secondary mt-0.5 shrink-0 sm:w-6 sm:h-6" />
         <div class="flex-1 min-w-0">
           <div class="font-medium mb-0 sm:mb-1 text-sm sm:text-base">
-            {{ t('testConnection') }}
+            {{ t('freshrssSyncNow') }}
           </div>
           <div class="text-xs text-text-secondary hidden sm:block">
-            {{ t('testConnectionDesc') }}
+            {{ t('freshrssSyncNowDesc') }}
+          </div>
+          <div class="text-xs text-text-secondary mt-1">
+            {{ t('freshrssLastSync') }}:
+            <span class="theme-number">{{ formatSyncTime(syncStatus.last_sync_time) }}</span>
           </div>
         </div>
       </div>
-      <div class="flex items-center gap-2 shrink-0">
-        <button :disabled="isSyncing" class="btn-secondary" @click="syncNow">
-          <PhArrowClockwise
-            :size="16"
-            :class="{ 'animate-spin': isSyncing, 'sm:w-5 sm:h-5': true }"
-          />
-          {{ isSyncing ? t('syncing') : t('syncNow') }}
-        </button>
-      </div>
+      <button class="btn-secondary" :disabled="isSyncing" @click="syncNow">
+        <PhArrowClockwise :size="16" class="sm:w-5 sm:h-5" :class="{ 'animate-spin': isSyncing }" />
+        {{ isSyncing ? t('freshrssSyncing') : t('freshrssSync') }}
+      </button>
     </div>
   </div>
 </template>
@@ -238,5 +355,9 @@ async function syncNow() {
 
 .animate-spin {
   animation: spin 1s linear infinite;
+}
+
+.theme-number {
+  @apply text-accent font-semibold;
 }
 </style>

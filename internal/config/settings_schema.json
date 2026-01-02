@@ -417,6 +417,13 @@
       "encrypted": false,
       "frontend_key": "maxConcurrentRefreshes"
     },
+    "retry_timeout_seconds": {
+      "type": "int",
+      "default": 60,
+      "category": "network",
+      "encrypted": false,
+      "frontend_key": "retryTimeoutSeconds"
+    },
     "last_network_test": {
       "type": "string",
       "default": "",
@@ -458,6 +465,27 @@
       "category": "integrations",
       "encrypted": true,
       "frontend_key": "freshRSSAPIPassword"
+    },
+    "freshrss_auto_sync_interval": {
+      "type": "int",
+      "default": 0,
+      "category": "integrations",
+      "encrypted": false,
+      "frontend_key": "freshRSSAutoSyncInterval"
+    },
+    "freshrss_sync_on_startup": {
+      "type": "bool",
+      "default": false,
+      "category": "integrations",
+      "encrypted": false,
+      "frontend_key": "freshRSSSyncOnStartup"
+    },
+    "freshrss_last_sync_time": {
+      "type": "string",
+      "default": "",
+      "category": "integrations",
+      "encrypted": false,
+      "frontend_key": "freshRSSLastSyncTime"
     },
     "full_text_fetch_enabled": {
       "type": "bool",
