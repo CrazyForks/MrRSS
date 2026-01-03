@@ -23,6 +23,7 @@ jobs:
       tag: ${{ steps.meta.outputs.tag }}
       version: ${{ steps.meta.outputs.version }}
       is_prerelease: ${{ steps.meta.outputs.is_prerelease }}
+      owner_lowercase: ${{ steps.meta.outputs.owner_lowercase }}
     steps:
       - name: Extract metadata
         id: meta
@@ -35,6 +36,10 @@ jobs:
           VERSION=${TAG#v}
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+          # Convert repository owner to lowercase for Docker tags
+          OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "owner_lowercase=${OWNER_LOWER}" >> $GITHUB_OUTPUT
 
           # Check if this is a pre-release (alpha or beta)
           # Match versions like 1.2.3-alpha, 1.2.3-alpha.1, 1.2.3-beta, 1.2.3-beta.2
@@ -79,8 +84,8 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/mrrss:${{ needs.extract-metadata.outputs.version }}-amd64
-            ${{ needs.extract-metadata.outputs.is_prerelease == 'false' && format('ghcr.io/{0}/mrrss:latest-amd64', github.repository_owner) || '' }}
+            ghcr.io/${{ needs.extract-metadata.outputs.owner_lowercase }}/mrrss:${{ needs.extract-metadata.outputs.version }}-amd64
+            ${{ needs.extract-metadata.outputs.is_prerelease == 'false' && format('ghcr.io/{0}/mrrss:latest-amd64', needs.extract-metadata.outputs.owner_lowercase) || '' }}
           labels: |
             org.opencontainers.image.title=MrRSS
             org.opencontainers.image.description=A modern, privacy-focused RSS reader
@@ -126,8 +131,8 @@ jobs:
           platforms: linux/arm64
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/mrrss:${{ needs.extract-metadata.outputs.version }}-arm64
-            ${{ needs.extract-metadata.outputs.is_prerelease == 'false' && format('ghcr.io/{0}/mrrss:latest-arm64', github.repository_owner) || '' }}
+            ghcr.io/${{ needs.extract-metadata.outputs.owner_lowercase }}/mrrss:${{ needs.extract-metadata.outputs.version }}-arm64
+            ${{ needs.extract-metadata.outputs.is_prerelease == 'false' && format('ghcr.io/{0}/mrrss:latest-arm64', needs.extract-metadata.outputs.owner_lowercase) || '' }}
           labels: |
             org.opencontainers.image.title=MrRSS
             org.opencontainers.image.description=A modern, privacy-focused RSS reader
@@ -154,21 +159,25 @@ jobs:
       - name: Create and push multi-arch manifest
         run: |
           VERSION="${{ needs.extract-metadata.outputs.version }}"
+          OWNER="${{ needs.extract-metadata.outputs.owner_lowercase }}"
 
           # Create version-specific manifest
-          docker buildx imagetools create -t ghcr.io/${{ github.repository_owner }}/mrrss:${VERSION} \
-            ghcr.io/${{ github.repository_owner }}/mrrss:${VERSION}-amd64 \
-            ghcr.io/${{ github.repository_owner }}/mrrss:${VERSION}-arm64
+          docker buildx imagetools create -t ghcr.io/${OWNER}/mrrss:${VERSION} \
+            ghcr.io/${OWNER}/mrrss:${VERSION}-amd64 \
+            ghcr.io/${OWNER}/mrrss:${VERSION}-arm64
 
           # Create latest manifest (only for stable releases)
           if [ "${{ needs.extract-metadata.outputs.is_prerelease }}" = "false" ]; then
-            docker buildx imagetools create -t ghcr.io/${{ github.repository_owner }}/mrrss:latest \
-              ghcr.io/${{ github.repository_owner }}/mrrss:latest-amd64 \
-              ghcr.io/${{ github.repository_owner }}/mrrss:latest-arm64
+            docker buildx imagetools create -t ghcr.io/${OWNER}/mrrss:latest \
+              ghcr.io/${OWNER}/mrrss:latest-amd64 \
+              ghcr.io/${OWNER}/mrrss:latest-arm64
           fi
 
       - name: Summary
         run: |
+          OWNER="${{ needs.extract-metadata.outputs.owner_lowercase }}"
+          VERSION="${{ needs.extract-metadata.outputs.version }}"
+
           echo "## Docker Release Completed! 🎉" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Tag:** ${{ needs.extract-metadata.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
@@ -176,31 +185,31 @@ jobs:
           echo "### Available Images" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Multi-architecture images:" >> $GITHUB_STEP_SUMMARY
-          echo "- \`ghcr.io/${{ github.repository_owner }}/mrrss:${{ needs.extract-metadata.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`ghcr.io/${OWNER}/mrrss:${VERSION}\`" >> $GITHUB_STEP_SUMMARY
 
           if [ "${{ needs.extract-metadata.outputs.is_prerelease }}" = "false" ]; then
-            echo "- \`ghcr.io/${{ github.repository_owner }}/mrrss:latest\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`ghcr.io/${OWNER}/mrrss:latest\`" >> $GITHUB_STEP_SUMMARY
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Architecture-specific images:" >> $GITHUB_STEP_SUMMARY
-          echo "- \`ghcr.io/${{ github.repository_owner }}/mrrss:${{ needs.extract-metadata.outputs.version }}-amd64\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`ghcr.io/${{ github.repository_owner }}/mrrss:${{ needs.extract-metadata.outputs.version }}-arm64\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`ghcr.io/${OWNER}/mrrss:${VERSION}-amd64\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`ghcr.io/${OWNER}/mrrss:${VERSION}-arm64\`" >> $GITHUB_STEP_SUMMARY
 
           if [ "${{ needs.extract-metadata.outputs.is_prerelease }}" = "false" ]; then
-            echo "- \`ghcr.io/${{ github.repository_owner }}/mrrss:latest-amd64\`" >> $GITHUB_STEP_SUMMARY
-            echo "- \`ghcr.io/${{ github.repository_owner }}/mrrss:latest-arm64\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`ghcr.io/${OWNER}/mrrss:latest-amd64\`" >> $GITHUB_STEP_SUMMARY
+            echo "- \`ghcr.io/${OWNER}/mrrss:latest-arm64\`" >> $GITHUB_STEP_SUMMARY
           fi
 
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Pull Command" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "docker pull ghcr.io/${{ github.repository_owner }}/mrrss:${{ needs.extract-metadata.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ghcr.io/${OWNER}/mrrss:${VERSION}" >> $GITHUB_STEP_SUMMARY
 
           if [ "${{ needs.extract-metadata.outputs.is_prerelease }}" = "false" ]; then
             echo "# or" >> $GITHUB_STEP_SUMMARY
-            echo "docker pull ghcr.io/${{ github.repository_owner }}/mrrss:latest" >> $GITHUB_STEP_SUMMARY
+            echo "docker pull ghcr.io/${OWNER}/mrrss:latest" >> $GITHUB_STEP_SUMMARY
           fi
 
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
