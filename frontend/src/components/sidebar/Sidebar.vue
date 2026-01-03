@@ -83,6 +83,16 @@ const {
 // Handle drag events from categories
 function handleDragStart(feedId: number, event: Event) {
   console.log('[handleDragStart] Starting drag for feed:', feedId);
+
+  // Prevent dragging FreshRSS feeds
+  const feed = store.feeds?.find((f) => f.id === feedId);
+  if (feed?.is_freshrss_source) {
+    console.log('[handleDragStart] Blocked drag for FreshRSS feed:', feedId);
+    event.preventDefault();
+    window.showToast(t('freshRSSFeedLocked'), 'info');
+    return;
+  }
+
   isDragging.value = true;
   dropHandled = false;
   onDragStart(feedId, event);
@@ -117,6 +127,40 @@ async function handleDrop(categoryName: string, feeds: any[]) {
     feeds: feeds.map((f) => ({ id: f.id, title: f.title, category: f.category })),
     draggingFeedId: draggingFeedId.value,
   });
+
+  // Get the dragged feed
+  const draggedFeed = store.feeds?.find((f) => f.id === draggingFeedId.value);
+
+  // Prevent dropping into FreshRSS categories
+  // Check if any feed in the target category is a FreshRSS feed
+  const targetCategoryFeeds = feeds.filter(
+    (f) => f.category === categoryName || (categoryName === 'uncategorized' && !f.category)
+  );
+  const hasFreshRSSFeedInTarget = targetCategoryFeeds.some((f) => f.is_freshrss_source);
+
+  // Also check if category name indicates it's a FreshRSS category (ends with " (FreshRSS)")
+  const isFreshRSSCategoryByName =
+    categoryName.endsWith(' (FreshRSS)') || categoryName.match(/ \(FreshRSS \d+\)$/);
+
+  // Block dropping non-FreshRSS feeds into FreshRSS categories
+  if (draggedFeed && !draggedFeed.is_freshrss_source) {
+    if (hasFreshRSSFeedInTarget || isFreshRSSCategoryByName) {
+      console.log('[handleDrop] Blocked drop into FreshRSS category:', categoryName);
+      window.showToast(t('freshRSSFeedLocked'), 'info');
+      isDragging.value = false;
+      return;
+    }
+  }
+
+  // Block dropping FreshRSS feeds into local categories
+  if (draggedFeed && draggedFeed.is_freshrss_source) {
+    if (!hasFreshRSSFeedInTarget && !isFreshRSSCategoryByName && targetCategoryFeeds.length > 0) {
+      console.log('[handleDrop] Cannot drop FreshRSS feed into local category');
+      window.showToast(t('freshRSSFeedLocked'), 'info');
+      isDragging.value = false;
+      return;
+    }
+  }
 
   try {
     // Keep isDragging true until after the data refreshes
@@ -234,7 +278,7 @@ const emitShowSettings = () => window.dispatchEvent(new CustomEvent('show-settin
       </div>
     </div>
 
-    <div class="flex-1 overflow-y-auto p-1.5 sm:p-2">
+    <div class="flex-1 overflow-y-scroll p-1.5 sm:p-2">
       <!-- Categories -->
       <SidebarCategory
         v-for="(data, name) in tree.tree"

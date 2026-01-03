@@ -11,7 +11,7 @@ import {
 
 const { t } = useI18n();
 
-const { fieldOptions, textOperatorOptions, booleanOptions, feedNames, feedCategories } =
+const { fieldOptions, textOperatorOptions, booleanOptions, feedNames, feedCategories, feedTypes } =
   useRuleOptions();
 
 interface Props {
@@ -209,6 +209,40 @@ function getMultiSelectDisplayText(): string {
           </div>
         </div>
 
+        <!-- Multi-select dropdown for feed type -->
+        <div v-else-if="condition.field === 'feed_type'" class="dropdown-container">
+          <button
+            type="button"
+            class="dropdown-trigger text-xs sm:text-sm"
+            @click="emit('toggle-dropdown')"
+          >
+            <span class="dropdown-text truncate">{{ getMultiSelectDisplayText() }}</span>
+            <span class="dropdown-arrow">▼</span>
+          </button>
+          <div v-if="isDropdownOpen" class="dropdown-menu dropdown-down">
+            <div
+              v-for="type in feedTypes"
+              :key="type"
+              :class="[
+                'dropdown-option text-xs sm:text-sm',
+                condition.values.includes(type as string) ? 'selected' : '',
+              ]"
+              @click.stop="handleToggleMultiSelectValue(type as string)"
+            >
+              <input
+                type="checkbox"
+                :checked="condition.values.includes(type as string)"
+                class="checkbox-input"
+                tabindex="-1"
+              />
+              <span class="truncate">{{ type || t('rssFeed') }}</span>
+            </div>
+            <div v-if="feedTypes.length === 0" class="text-text-secondary text-xs sm:text-sm p-2">
+              {{ t('noArticles') }}
+            </div>
+          </div>
+        </div>
+
         <!-- Regular text input -->
         <input
           v-else
@@ -236,22 +270,28 @@ function getMultiSelectDisplayText(): string {
 
 .input-field {
   @apply p-1.5 sm:p-2 border border-border rounded-md bg-bg-primary text-text-primary focus:border-accent focus:outline-none transition-colors;
+  height: 38px;
 }
 .select-field {
   @apply p-1.5 sm:p-2 border border-border rounded-md bg-bg-primary text-text-primary focus:border-accent focus:outline-none transition-colors cursor-pointer;
+  height: 38px;
 }
 .date-field {
   @apply p-1.5 sm:p-2 border border-border rounded-md bg-bg-primary text-text-primary focus:border-accent focus:outline-none transition-colors cursor-pointer;
   color-scheme: light dark;
+  height: 38px;
 }
 .btn-danger-icon {
   @apply p-1.5 sm:p-2 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer;
+  height: 38px;
+  width: 38px;
 }
 
 /* NOT button styling */
 .not-btn {
-  @apply flex items-center gap-1 px-1.5 sm:px-2 py-1.5 sm:py-2 rounded-md border transition-all cursor-pointer;
+  @apply flex items-center gap-1 px-1.5 sm:px-2 rounded-md border transition-all cursor-pointer;
   @apply text-text-secondary bg-bg-primary border-border;
+  height: 38px;
 }
 .not-btn:hover {
   @apply border-red-400 text-red-500;
@@ -267,6 +307,7 @@ function getMultiSelectDisplayText(): string {
 .dropdown-trigger {
   @apply w-full p-1.5 sm:p-2 border border-border rounded-md bg-bg-primary text-text-primary;
   @apply flex items-center justify-between cursor-pointer hover:border-accent transition-colors;
+  height: 38px;
 }
 .dropdown-text {
   @apply flex-1 text-left;
@@ -276,7 +317,7 @@ function getMultiSelectDisplayText(): string {
 }
 .dropdown-menu {
   @apply absolute left-0 right-0 border border-border rounded-md bg-bg-primary;
-  @apply max-h-40 overflow-y-auto z-50 shadow-lg;
+  @apply max-h-40 overflow-y-auto z-50 shadow-lg scroll-smooth;
 }
 .dropdown-menu.dropdown-down {
   @apply top-full mt-1;

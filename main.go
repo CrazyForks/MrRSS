@@ -191,11 +191,12 @@ func main() {
 	apiMux.HandleFunc("/api/feeds/discover-all/progress", func(w http.ResponseWriter, r *http.Request) { discovery.HandleGetBatchDiscoveryProgress(h, w, r) })
 	apiMux.HandleFunc("/api/feeds/discover-all/clear", func(w http.ResponseWriter, r *http.Request) { discovery.HandleClearBatchDiscovery(h, w, r) })
 	apiMux.HandleFunc("/api/feeds/reorder", func(w http.ResponseWriter, r *http.Request) { feedhandlers.HandleReorderFeed(h, w, r) })
+	apiMux.HandleFunc("/api/feeds/test-imap", func(w http.ResponseWriter, r *http.Request) { feedhandlers.HandleTestIMAPConnection(h, w, r) })
 	apiMux.HandleFunc("/api/articles", func(w http.ResponseWriter, r *http.Request) { article.HandleArticles(h, w, r) })
 	apiMux.HandleFunc("/api/articles/images", func(w http.ResponseWriter, r *http.Request) { article.HandleImageGalleryArticles(h, w, r) })
 	apiMux.HandleFunc("/api/articles/filter", func(w http.ResponseWriter, r *http.Request) { article.HandleFilteredArticles(h, w, r) })
-	apiMux.HandleFunc("/api/articles/read", func(w http.ResponseWriter, r *http.Request) { article.HandleMarkRead(h, w, r) })
-	apiMux.HandleFunc("/api/articles/favorite", func(w http.ResponseWriter, r *http.Request) { article.HandleToggleFavorite(h, w, r) })
+	apiMux.HandleFunc("/api/articles/read", func(w http.ResponseWriter, r *http.Request) { article.HandleMarkReadWithImmediateSync(h, w, r) })
+	apiMux.HandleFunc("/api/articles/favorite", func(w http.ResponseWriter, r *http.Request) { article.HandleToggleFavoriteWithImmediateSync(h, w, r) })
 	apiMux.HandleFunc("/api/articles/cleanup", func(w http.ResponseWriter, r *http.Request) { article.HandleCleanupArticles(h, w, r) })
 	apiMux.HandleFunc("/api/articles/cleanup-content", func(w http.ResponseWriter, r *http.Request) { article.HandleCleanupArticleContent(h, w, r) })
 	apiMux.HandleFunc("/api/articles/content-cache-info", func(w http.ResponseWriter, r *http.Request) { article.HandleGetArticleContentCacheInfo(h, w, r) })
@@ -265,6 +266,8 @@ func main() {
 	apiMux.HandleFunc("/api/custom-css/delete", func(w http.ResponseWriter, r *http.Request) { customcss.HandleDeleteCSS(h, w, r) })
 	apiMux.HandleFunc("/api/freshrss/sync", func(w http.ResponseWriter, r *http.Request) { freshrssHandler.HandleSync(h, w, r) })
 	apiMux.HandleFunc("/api/freshrss/test-connection", func(w http.ResponseWriter, r *http.Request) { freshrssHandler.HandleTestConnection(h, w, r) })
+	apiMux.HandleFunc("/api/freshrss/sync-feed", func(w http.ResponseWriter, r *http.Request) { freshrssHandler.HandleSyncFeed(h, w, r) })
+	apiMux.HandleFunc("/api/freshrss/status", func(w http.ResponseWriter, r *http.Request) { freshrssHandler.HandleSyncStatus(h, w, r) })
 	// RSSHub routes
 	apiMux.HandleFunc("/api/rsshub/add", func(w http.ResponseWriter, r *http.Request) { rsshubHandler.HandleAddFeed(h, w, r) })
 	apiMux.HandleFunc("/api/rsshub/test-connection", func(w http.ResponseWriter, r *http.Request) { rsshubHandler.HandleTestConnection(h, w, r) })
@@ -314,7 +317,7 @@ func main() {
 	app := application.New(application.Options{
 		Name:        "MrRSS",
 		Description: "A modern, privacy-focused RSS reader",
-		LogLevel:    slog.LevelDebug,
+		LogLevel:    slog.LevelError,
 		Assets: application.AssetOptions{
 			Handler:    combinedHandler,
 			Middleware: APIMiddleware(combinedHandler),
@@ -356,7 +359,6 @@ func main() {
 								y = 100
 							}
 
-							log.Printf("Restoring window state: x=%d, y=%d, width=%d, height=%d", x, y, width, height)
 							mainWindow.SetSize(width, height)
 							mainWindow.SetPosition(x, y)
 						}
@@ -394,7 +396,6 @@ func main() {
 									// Validate values
 									if widthInt >= 400 && heightInt >= 300 && widthInt <= 4000 && heightInt <= 3000 {
 										if xInt > -1000 && xInt < 3000 && yInt > -1000 && yInt < 3000 {
-											log.Printf("Found window state from database: x=%d, y=%d, width=%d, height=%d", xInt, yInt, widthInt, heightInt)
 											windowWidth = widthInt
 											windowHeight = heightInt
 											windowX = xInt
@@ -417,6 +418,18 @@ func main() {
 		}
 	}
 
+	// Determine background color based on theme setting
+	// Default to dark gray to prevent white flash on startup/close
+	// This matches the CSS dark mode background color (#1e1e1e = rgb(30, 30, 30))
+	backgroundColour := application.NewRGB(30, 30, 30)
+	if theme, err := db.GetSetting("theme"); err == nil {
+		if theme == "light" {
+			// Use white for light theme
+			backgroundColour = application.NewRGB(255, 255, 255)
+		}
+		// For "dark" or "auto", use dark background
+	}
+
 	// Create main window options
 	windowOptions := application.WebviewWindowOptions{
 		Name:             "MrRSS-main-window",
@@ -427,7 +440,7 @@ func main() {
 		Mac:              application.MacWindow{},
 		Windows:          application.WindowsWindow{},
 		Linux:            application.LinuxWindow{},
-		BackgroundColour: application.NewRGB(255, 255, 255),
+		BackgroundColour: backgroundColour,
 	}
 
 	// Set position if restored from DB
@@ -440,7 +453,6 @@ func main() {
 	mainWindow = app.Window.NewWithOptions(windowOptions)
 
 	if !restoredFromDB {
-		log.Println("No saved window state found, centering window")
 		mainWindow.Center()
 	}
 
@@ -461,12 +473,7 @@ func main() {
 				lastWindowState.x = x
 				lastWindowState.y = y
 				lastWindowState.valid.Store(true)
-				log.Printf("Stored window state: x=%d, y=%d, width=%d, height=%d", x, y, w, h)
-			} else {
-				log.Printf("Window position invalid (x=%d, y=%d), not storing", x, y)
 			}
-		} else {
-			log.Printf("Window size invalid (width=%d, height=%d), not storing", w, h)
 		}
 	}
 
@@ -524,7 +531,6 @@ func main() {
 						y = 100
 					}
 
-					log.Printf("Restoring window state: x=%d, y=%d, width=%d, height=%d", x, y, width, height)
 					mainWindow.SetSize(width, height)
 					mainWindow.SetPosition(x, y)
 				}

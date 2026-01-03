@@ -3,6 +3,7 @@ package feed
 import (
 	"MrRSS/internal/database"
 	"MrRSS/internal/models"
+	"MrRSS/internal/utils"
 	"context"
 	"net/http"
 	"net/url"
@@ -36,51 +37,24 @@ func setupDBForFeedTests(t *testing.T) *database.DB {
 	return db
 }
 
-func TestGetConcurrencyLimitVariants(t *testing.T) {
-	db := setupDBForFeedTests(t)
-	f := NewFetcher(db, nil)
-
-	// Test with small feed count (normal concurrency)
-	if got := f.getConcurrencyLimit(5); got != 5 {
-		t.Fatalf("expected default 5, got %d", got)
-	}
-
-	db.SetSetting("max_concurrent_refreshes", "3")
-	if got := f.getConcurrencyLimit(5); got != 3 {
-		t.Fatalf("expected 3, got %d", got)
-	}
-
-	db.SetSetting("max_concurrent_refreshes", "abc")
-	if got := f.getConcurrencyLimit(5); got != 5 {
-		t.Fatalf("invalid value should fallback to 5, got %d", got)
-	}
-
-	db.SetSetting("max_concurrent_refreshes", "100")
-	if got := f.getConcurrencyLimit(5); got != 30 {
-		t.Fatalf("capped at 30, got %d", got)
-	}
-
-	// Test with various feed counts - concurrency is now independent of feed count
-	db.SetSetting("max_concurrent_refreshes", "10")
-	if got := f.getConcurrencyLimit(30); got != 10 {
-		t.Fatalf("expected 10 for 30 feeds, got %d", got)
-	}
-
-	if got := f.getConcurrencyLimit(60); got != 10 {
-		t.Fatalf("expected 10 for 60 feeds, got %d", got)
-	}
-}
-
 func TestGetHTTPClientProxyPrecedence(t *testing.T) {
 	db := setupDBForFeedTests(t)
 	f := NewFetcher(db, nil)
+
+	// Helper function to get the underlying http.Transport
+	getTransport := func(client *http.Client) *http.Transport {
+		if uat, ok := client.Transport.(*utils.UserAgentTransport); ok {
+			return uat.Original.(*http.Transport)
+		}
+		return client.Transport.(*http.Transport)
+	}
 
 	feed := models.Feed{ProxyEnabled: true, ProxyURL: "http://10.0.0.1:3128"}
 	client, err := f.getHTTPClient(feed)
 	if err != nil {
 		t.Fatalf("getHTTPClient error: %v", err)
 	}
-	tr := client.Transport.(*http.Transport)
+	tr := getTransport(client)
 	if tr.Proxy == nil {
 		t.Fatalf("expected proxy function for feed-level proxy")
 	}
@@ -101,7 +75,7 @@ func TestGetHTTPClientProxyPrecedence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("getHTTPClient error: %v", err)
 	}
-	tr2 := client2.Transport.(*http.Transport)
+	tr2 := getTransport(client2)
 	if tr2.Proxy == nil {
 		t.Fatalf("expected proxy function for global proxy")
 	}
@@ -115,7 +89,7 @@ func TestGetHTTPClientProxyPrecedence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("getHTTPClient error: %v", err)
 	}
-	tr3 := client3.Transport.(*http.Transport)
+	tr3 := getTransport(client3)
 	if tr3.Proxy != nil {
 		if pu3, _ := tr3.Proxy(&http.Request{URL: &url.URL{Scheme: "http", Host: "example.com"}}); pu3 != nil {
 			t.Fatalf("expected no proxy when disabled, got %v", pu3)

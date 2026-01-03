@@ -14,10 +14,10 @@
     !define INFO_PRODUCTNAME "MrRSS"
 !endif
 !ifndef INFO_PRODUCTVERSION
-    !define INFO_PRODUCTVERSION "1.3.12"
+    !define INFO_PRODUCTVERSION "1.3.13"
 !endif
 !ifndef INFO_COPYRIGHT
-    !define INFO_COPYRIGHT "Copyright © 2025"
+    !define INFO_COPYRIGHT "Copyright © 2026"
 !endif
 !ifndef PRODUCT_EXECUTABLE
     !define PRODUCT_EXECUTABLE "${INFO_PROJECTNAME}.exe"

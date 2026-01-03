@@ -18,6 +18,7 @@ export interface Article {
   is_hidden: boolean;
   is_read_later: boolean;
   summary?: string; // Cached AI-generated summary
+  freshrss_item_id?: string; // FreshRSS/Google Reader item ID
 }
 
 export interface Feed {
@@ -51,6 +52,20 @@ export interface Feed {
   xpath_item_uid?: string;
   article_view_mode?: string; // Article view mode override ('global', 'webpage', 'rendered')
   auto_expand_content?: string; // Auto expand content mode ('global', 'enabled', 'disabled')
+  // Email/Newsletter support
+  email_address?: string;
+  email_imap_server?: string;
+  email_imap_port?: number;
+  email_username?: string;
+  email_password?: string;
+  email_folder?: string;
+  // FreshRSS integration
+  is_freshrss_source?: boolean; // Whether this feed is from FreshRSS sync
+  freshrss_stream_id?: string; // FreshRSS stream ID (e.g., "feed/http://...")
+  // Statistics
+  latest_article_time?: string; // Latest article publish time
+  articles_per_month?: number; // Average articles per month (calculated from last 90 days)
+  last_update_status?: string; // Last update status ("success" or "failed")
 }
 
 export interface UnreadCounts {

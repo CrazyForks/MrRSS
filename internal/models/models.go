@@ -34,6 +34,21 @@ type Feed struct {
 	XPathItemUid        string `json:"xpath_item_uid"`         // XPath to extract item unique ID
 	ArticleViewMode     string `json:"article_view_mode"`      // Article view mode override ('global', 'webpage', 'rendered')
 	AutoExpandContent   string `json:"auto_expand_content"`    // Auto expand content mode ('global', 'enabled', 'disabled')
+	// Email/Newsletter support
+	EmailAddress    string `json:"email_address,omitempty"`     // Email address for newsletter subscriptions
+	EmailIMAPServer string `json:"email_imap_server,omitempty"` // IMAP server address
+	EmailIMAPPort   int    `json:"email_imap_port"`             // IMAP server port (default 993)
+	EmailUsername   string `json:"email_username,omitempty"`    // IMAP username
+	EmailPassword   string `json:"email_password,omitempty"`    // IMAP password (encrypted)
+	EmailFolder     string `json:"email_folder"`                // IMAP folder to monitor (default INBOX)
+	EmailLastUID    int    `json:"email_last_uid"`              // Last processed email UID for incremental updates
+	// FreshRSS integration
+	IsFreshRSSSource bool   `json:"is_freshrss_source"` // Whether this feed is from FreshRSS sync
+	FreshRSSStreamID string `json:"freshrss_stream_id"` // FreshRSS stream ID (e.g., "feed/http://...")
+	// Statistics
+	LatestArticleTime *time.Time `json:"latest_article_time,omitempty"` // Latest article publish time
+	ArticlesPerMonth  float64    `json:"articles_per_month,omitempty"`  // Average articles per month (last 90 days / 3)
+	LastUpdateStatus  string     `json:"last_update_status,omitempty"`  // Last update status ("success" or "failed")
 }
 
 type Article struct {
@@ -52,6 +67,7 @@ type Article struct {
 	IsReadLater           bool      `json:"is_read_later"`
 	FeedTitle             string    `json:"feed_title,omitempty"` // Joined field
 	TranslatedTitle       string    `json:"translated_title"`
-	Summary               string    `json:"summary"`   // Cached AI-generated summary
-	UniqueID              string    `json:"unique_id"` // Unique identifier for deduplication (title+feed_id+published_date)
+	Summary               string    `json:"summary"`          // Cached AI-generated summary
+	UniqueID              string    `json:"unique_id"`        // Unique identifier for deduplication (title+feed_id+published_date)
+	FreshRSSItemID        string    `json:"freshrss_item_id"` // FreshRSS/Google Reader item ID for API operations
 }

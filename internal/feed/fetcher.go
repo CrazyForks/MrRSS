@@ -29,6 +29,7 @@ type Fetcher struct {
 	highPriorityFp    FeedParser // High priority parser for content fetching
 	translator        translation.Translator
 	scriptExecutor    *ScriptExecutor
+	emailFetcher      *EmailFetcher
 	progress          Progress
 	mu                sync.Mutex
 	refreshCalculator *IntelligentRefreshCalculator
@@ -44,10 +45,16 @@ func NewFetcher(db *database.DB, translator translation.Translator) *Fetcher {
 		executor = NewScriptExecutor(scriptsDir)
 	}
 
-	// Create HTTP client for feed parsing
-	httpClient, err := CreateHTTPClient("")
+	// Create HTTP client for feed parsing with proper User-Agent
+	// This is critical because many RSS servers block requests without a proper User-Agent
+	httpClient, err := utils.CreateHTTPClientWithUserAgent(
+		"",
+		30*time.Second,
+		"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+	)
 	if err != nil {
 		// Fallback to default client if proxy setup fails
+		log.Printf("Warning: Failed to create HTTP client with User-Agent: %v, using default client", err)
 		httpClient = &http.Client{Timeout: 30 * time.Second}
 	}
 
@@ -65,11 +72,12 @@ func NewFetcher(db *database.DB, translator translation.Translator) *Fetcher {
 		highPriorityFp:    highPriorityParser,
 		translator:        translator,
 		scriptExecutor:    executor,
+		emailFetcher:      NewEmailFetcher(db),
 		refreshCalculator: NewIntelligentRefreshCalculator(db),
 	}
 
-	// Initialize task manager with default capacity
-	fetcher.taskManager = NewTaskManager(fetcher, 5)
+	// Initialize task manager with default capacity (increased from 5 to 10)
+	fetcher.taskManager = NewTaskManager(fetcher, 10)
 	fetcher.taskManager.Start()
 
 	// Initialize cleanup manager
@@ -122,21 +130,21 @@ func (f *Fetcher) getDataDir() (string, error) {
 }
 
 // getConcurrencyLimit returns the maximum number of concurrent feed refreshes
-// based on network detection or defaults to 5 if not configured
-func (f *Fetcher) getConcurrencyLimit(feedCount int) int {
+// based on network detection or defaults to 10 if not configured
+func (f *Fetcher) getConcurrencyLimit() int {
 	concurrencyStr, err := f.db.GetSetting("max_concurrent_refreshes")
 	if err != nil || concurrencyStr == "" {
-		return 5 // Default concurrency if network detection failed or not run
+		return 10 // Default concurrency increased from 5 to 10
 	}
 
 	concurrency, err := strconv.Atoi(concurrencyStr)
 	if err != nil || concurrency < 1 {
-		return 5 // Default on parse error or invalid value
+		return 10 // Default on parse error or invalid value
 	}
 
-	// Cap at reasonable limits (increased from 20 to 30 for faster networks)
-	if concurrency > 30 {
-		concurrency = 30
+	// Cap at reasonable limits (increased to 50 for faster networks)
+	if concurrency > 50 {
+		concurrency = 50
 	}
 
 	return concurrency
@@ -231,12 +239,33 @@ func (f *Fetcher) FetchAll(ctx context.Context) {
 		return
 	}
 
+	// Filter out FreshRSS feeds - they are refreshed via sync, not standard refresh
+	filteredFeeds := make([]models.Feed, 0, len(feeds))
+	freshRSSCount := 0
+	for _, feed := range feeds {
+		if feed.IsFreshRSSSource {
+			freshRSSCount++
+		} else {
+			filteredFeeds = append(filteredFeeds, feed)
+		}
+	}
+
+	// If all feeds are FreshRSS feeds, no standard refresh needed
+	if len(filteredFeeds) == 0 {
+		log.Printf("All %d feeds are FreshRSS sources (refreshed via sync only), skipping standard refresh", freshRSSCount)
+		// Mark progress as completed since there's nothing to do
+		f.taskManager.MarkCompleted()
+		return
+	}
+
+	log.Printf("Standard refresh: %d feeds (skipped %d FreshRSS feeds)", len(filteredFeeds), freshRSSCount)
+
 	// Update task manager capacity based on network
-	concurrency := f.getConcurrencyLimit(len(feeds))
+	concurrency := f.getConcurrencyLimit()
 	f.taskManager.SetPoolCapacity(concurrency)
 
 	// Use task manager for global refresh (all feeds go to queue tail)
-	f.taskManager.AddGlobalRefresh(ctx, feeds)
+	f.taskManager.AddGlobalRefresh(ctx, filteredFeeds)
 }
 
 func (f *Fetcher) FetchFeed(ctx context.Context, feed models.Feed) {
@@ -392,8 +421,6 @@ func (f *Fetcher) fetchFeedWithContext(ctx context.Context, feed models.Feed) er
 			}
 		}()
 	}
-
-	utils.DebugLog("Updated feed: %s", feed.Title)
 	return nil
 }
 

@@ -153,11 +153,6 @@ const isLoadingSummary = computed(() =>
   props.article ? isSummaryLoading(props.article.id) : false
 );
 
-// Additional state for summary translation
-const translatedSummary = ref('');
-const translatedSummaryHTML = ref(''); // HTML version of translated summary
-const isTranslatingSummary = ref(false);
-
 // Additional state for translation
 const translatedTitle = ref('');
 const isTranslatingTitle = ref(false);
@@ -172,7 +167,18 @@ async function loadSettings() {
 
 // Translate text using the API
 async function translateText(text: string): Promise<{ text: string; html: string }> {
-  if (!text || !translationEnabled.value) return { text: '', html: '' };
+  if (!text || !translationEnabled.value) {
+    console.log('[translateText] Skipping translation:', {
+      hasText: !!text,
+      enabled: translationEnabled.value,
+    });
+    return { text: '', html: '' };
+  }
+
+  console.log('[translateText] Starting translation:', {
+    textLength: text.length,
+    targetLanguage: targetLanguage.value,
+  });
 
   try {
     const res = await fetch('/api/articles/translate-text', {
@@ -186,18 +192,25 @@ async function translateText(text: string): Promise<{ text: string; html: string
 
     if (res.ok) {
       const data = await res.json();
+      console.log('[translateText] Translation successful:', {
+        translatedLength: data.translated_text?.length || 0,
+        htmlLength: data.html?.length || 0,
+      });
       return {
         text: data.translated_text || '',
         html: data.html || '',
       };
     } else {
-      console.error('Error translating text:', res.status);
+      console.error('[translateText] API error:', res.status);
+      const errorText = await res.text();
+      console.error('[translateText] Error response:', errorText);
       window.showToast(t('errorTranslatingContent'), 'error');
     }
   } catch (e) {
-    console.error('Error translating text:', e);
+    console.error('[translateText] Network error:', e);
     window.showToast(t('errorTranslating'), 'error');
   }
+  console.log('[translateText] Translation failed, returning empty strings');
   return { text: '', html: '' };
 }
 
@@ -261,27 +274,17 @@ async function generateSummary(article: Article, force: boolean = false) {
   // Only clear state if forcing regeneration
   if (force) {
     summaryResult.value = null;
-    translatedSummary.value = '';
-    translatedSummaryHTML.value = '';
   }
 
   const result = await generateSummaryComposable(article, displayContent.value, force);
-  summaryResult.value = result;
 
   // Update the article summary in store for caching
   if (result?.summary) {
     store.updateArticleSummary(article.id, result.summary);
   }
 
-  // Auto-translate summary if translation is enabled
-  // Only translate if we got a new summary (result is from API, not cached)
-  if (translationEnabled.value && result?.summary && !result.is_too_short) {
-    isTranslatingSummary.value = true;
-    const translation = await translateText(result.summary);
-    translatedSummary.value = translation.text;
-    translatedSummaryHTML.value = translation.html;
-    isTranslatingSummary.value = false;
-  }
+  // Set summary result
+  summaryResult.value = result;
 }
 
 // Check if should auto-generate summary
@@ -354,12 +357,41 @@ async function translateContentParagraphs(content: string) {
     'DT',
     'DD',
   ];
-  const elements = proseContainer.querySelectorAll(textTags.join(','));
 
   // Track which elements we've already translated to avoid duplicates
   const translatedElements = new Set<HTMLElement>();
 
-  for (const el of elements) {
+  // Process elements level by level to handle nested structures correctly
+  // First, get all elements and sort them by depth (shallowest first)
+  const allElements = Array.from(proseContainer.querySelectorAll(textTags.join(',')));
+
+  // Sort by depth (number of ancestors) to process outermost elements first
+  allElements.sort((a, b) => {
+    const getDepth = (el: Element): number => {
+      let depth = 0;
+      let parent = el.parentElement;
+      while (parent && parent !== proseContainer) {
+        depth++;
+        parent = parent.parentElement;
+      }
+      return depth;
+    };
+    return getDepth(a) - getDepth(b);
+  });
+
+  // Helper function to check if an element can contain nested translatable content
+  const canContainNestedTranslatableElements = (el: HTMLElement): boolean => {
+    // These elements can contain other translatable elements
+    const nestableTags = ['LI', 'BLOCKQUOTE', 'DD', 'DT', 'TD', 'TH'];
+    return nestableTags.includes(el.tagName);
+  };
+
+  // Helper function to get nested translatable children (direct children only)
+  const getNestedTranslatableChildren = (el: HTMLElement): Element[] => {
+    return Array.from(el.children).filter((child) => textTags.includes(child.tagName));
+  };
+
+  for (const el of allElements) {
     const htmlEl = el as HTMLElement;
 
     // Skip if inside a translation element
@@ -371,12 +403,22 @@ async function translateContentParagraphs(content: string) {
     // Skip if we've already translated this element
     if (translatedElements.has(htmlEl)) continue;
 
-    // Skip if this element's parent was already translated
-    // This prevents duplicate translations of nested elements
+    // Skip if this element's parent or any ancestor was already translated
+    // EXCEPTION: For LI/BLOCKQUOTE/DD/DT/TD/TH elements, if the parent element
+    // also contains nested elements, allow translation
     let hasTranslatedAncestor = false;
     let ancestor = htmlEl.parentElement;
     while (ancestor && ancestor !== proseContainer) {
       if (translatedElements.has(ancestor)) {
+        // If current element is also nestable (like LI), check if ancestor has nested children
+        if (canContainNestedTranslatableElements(htmlEl)) {
+          const ancestorNested = getNestedTranslatableChildren(ancestor as HTMLElement);
+          if (ancestorNested.length > 0) {
+            // Both are nestable and ancestor has nested children, allow this one
+            ancestor = ancestor.parentElement;
+            continue;
+          }
+        }
         hasTranslatedAncestor = true;
         break;
       }
@@ -524,8 +566,6 @@ watch(
       }
 
       summaryResult.value = null;
-      translatedSummary.value = '';
-      translatedSummaryHTML.value = '';
       translatedTitle.value = '';
       lastTranslatedArticleId.value = null; // Reset translation tracking
       fullArticleContent.value = ''; // Reset full article content when switching articles
@@ -536,17 +576,10 @@ watch(
           // Load the cached summary by calling API to get HTML
           // Don't use on-the-fly summarization, let backend convert cached markdown to HTML
           const result = await generateSummaryComposable(props.article, '', false);
+
+          // Set summary result
           if (result) {
             summaryResult.value = result;
-          }
-
-          // Translate the cached summary if translation is enabled
-          if (translationEnabled.value && result?.summary) {
-            isTranslatingSummary.value = true;
-            const translation = await translateText(result.summary);
-            translatedSummary.value = translation.text;
-            translatedSummaryHTML.value = translation.html;
-            isTranslatingSummary.value = false;
           }
         } else if (shouldAutoGenerateSummary()) {
           // Only auto-generate if no cached summary exists
@@ -615,17 +648,10 @@ onMounted(async () => {
     if (props.article.summary && props.article.summary.trim() !== '') {
       // Load the cached summary by calling API to get HTML
       const result = await generateSummaryComposable(props.article, '', false);
+
+      // Set summary result
       if (result) {
         summaryResult.value = result;
-      }
-
-      // Translate the cached summary if translation is enabled
-      if (translationEnabled.value && result?.summary) {
-        isTranslatingSummary.value = true;
-        const translation = await translateText(result.summary);
-        translatedSummary.value = translation.text;
-        translatedSummaryHTML.value = translation.html;
-        isTranslatingSummary.value = false;
       }
     } else if (shouldAutoGenerateSummary() && props.articleContent) {
       // Only auto-generate if no cached summary exists
@@ -670,7 +696,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="flex-1 overflow-y-auto bg-bg-primary p-3 sm:p-6" @click="handleContainerClick">
+  <div
+    class="flex-1 overflow-y-auto bg-bg-primary p-3 sm:p-6 scroll-smooth"
+    @click="handleContainerClick"
+  >
     <div
       class="max-w-3xl mx-auto bg-bg-primary"
       :class="{ 'hide-translations': !showTranslations }"
@@ -699,9 +728,6 @@ onBeforeUnmount(() => {
       <ArticleSummary
         :summary-result="summaryResult"
         :is-loading-summary="isLoadingSummary"
-        :translated-summary="translatedSummary"
-        :translated-summary-html="translatedSummaryHTML"
-        :is-translating-summary="isTranslatingSummary"
         :translation-enabled="translationEnabled"
         :summary-provider="summaryProvider"
         :summary-trigger-mode="summaryTriggerMode"
