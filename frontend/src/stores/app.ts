@@ -156,12 +156,9 @@ export const useAppStore = defineStore('app', () => {
 
   async function fetchFeeds(): Promise<void> {
     try {
-      console.log('[App Store] Fetching feeds...');
       const res = await fetch('/api/feeds');
-      console.log('[App Store] Response status:', res.status);
 
       const text = await res.text();
-      console.log('[App Store] Response length:', text.length);
 
       let data;
       try {
@@ -173,7 +170,6 @@ export const useAppStore = defineStore('app', () => {
       }
 
       feeds.value = data;
-      console.log('[App Store] Feeds loaded successfully, count:', data.length);
 
       // Fetch unread counts after fetching feeds
       await fetchUnreadCounts();

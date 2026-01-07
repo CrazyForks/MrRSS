@@ -7,6 +7,7 @@ import { formatDate as formatDateUtil } from '@/utils/date';
 import { getProxiedMediaUrl, isMediaCacheEnabled } from '@/utils/mediaProxy';
 import { useShowPreviewImages } from '@/composables/ui/useShowPreviewImages';
 import { useAppStore } from '@/stores/app';
+import { imageCache } from '@/utils/imageCache';
 
 interface Props {
   article: Article;
@@ -46,19 +47,58 @@ let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const imageUrl = computed(() => {
   if (!props.article.image_url) return '';
-  if (mediaCacheEnabled.value) {
-    return getProxiedMediaUrl(props.article.image_url, props.article.url);
-  }
-  return props.article.image_url;
+
+  const originalUrl = props.article.image_url;
+  const finalUrl = mediaCacheEnabled.value
+    ? getProxiedMediaUrl(props.article.image_url, props.article.url)
+    : originalUrl;
+
+  // Use global cache manager to get the appropriate URL
+  return imageCache.getImageUrl(finalUrl);
 });
 
 const shouldShowImage = computed(() => {
   return showPreviewImages.value && props.article.image_url;
 });
 
+function handleImageLoad(event: Event) {
+  const target = event.target as HTMLImageElement;
+  const url = target.src;
+
+  // Mark as loaded in global cache
+  imageCache.markAsLoaded(url);
+  target.style.display = '';
+}
+
 function handleImageError(event: Event) {
   const target = event.target as HTMLImageElement;
-  target.style.display = 'none';
+  const url = target.src;
+
+  // Check if we have a cached version to restore
+  if (imageCache.hasCached(url)) {
+    const cachedUrl = imageCache.getImageUrl(url);
+    if (cachedUrl !== url) {
+      target.src = cachedUrl;
+      return;
+    }
+  }
+
+  // Handle error with retry logic
+  const result = imageCache.handleLoadError(url);
+
+  if (result.shouldRetry && result.delay) {
+    // Retry after delay
+    setTimeout(() => {
+      if (target.parentNode) {
+        // Reset retry counter and trigger reload
+        imageCache.resetRetry(url);
+        target.src = url;
+      }
+    }, result.delay);
+  } else if (!imageCache.hasCached(url)) {
+    // Final failure with no cache - hide the image
+    target.style.display = 'none';
+  }
 }
 
 // Hover mark as read functionality
@@ -142,6 +182,7 @@ onUnmounted(() => {
       v-if="shouldShowImage"
       :src="imageUrl"
       class="w-16 h-12 sm:w-20 sm:h-[60px] object-cover rounded bg-bg-tertiary shrink-0 border border-border"
+      @load="handleImageLoad"
       @error="handleImageError"
     />
 
