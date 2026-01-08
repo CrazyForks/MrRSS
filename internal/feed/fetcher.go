@@ -115,7 +115,7 @@ func (f *Fetcher) transformRSSHubURL(url string) (string, error) {
 	}
 
 	// Check if RSSHub is enabled
-	enabledStr, err := f.db.GetSetting("rsshub_enabled")
+	enabledStr, _ := f.db.GetSetting("rsshub_enabled")
 	if enabledStr != "true" {
 		return "", fmt.Errorf("RSSHub integration is disabled. Please enable it in settings")
 	}
