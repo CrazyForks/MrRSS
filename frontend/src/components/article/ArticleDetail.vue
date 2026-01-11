@@ -15,6 +15,8 @@ const {
   isLoadingContent,
   imageViewerSrc,
   imageViewerAlt,
+  imageViewerImages,
+  imageViewerInitialIndex,
   hasPreviousArticle,
   hasNextArticle,
   close,
@@ -169,6 +171,8 @@ onBeforeUnmount(() => {
       v-if="imageViewerSrc"
       :src="imageViewerSrc"
       :alt="imageViewerAlt"
+      :images="imageViewerImages"
+      :initial-index="imageViewerInitialIndex"
       @close="closeImageViewer"
     />
   </main>

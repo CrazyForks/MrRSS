@@ -184,6 +184,20 @@ export function useKeyboardShortcuts(callbacks: KeyboardShortcutCallbacks) {
       return;
     }
 
+    // Check if image viewer is open - if so, let it handle arrow keys
+    const imageViewerOpen = document.querySelector('[data-image-viewer="true"]') !== null;
+    if (imageViewerOpen) {
+      // Image viewer handles its own keyboard events
+      // Only ESC key should be handled here to close the viewer
+      const key = buildKeyCombo(e);
+      if (key === shortcuts.value.closeArticle) {
+        // Let the image viewer's ESC handler close it
+        return;
+      }
+      // Block all other shortcuts when image viewer is open
+      return;
+    }
+
     // Check if settings modal is open
     const settingsModalOpen = document.querySelector('[data-settings-modal="true"]') !== null;
 

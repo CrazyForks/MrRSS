@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Supported compact mode for article list to reduce visual clutter. (#403)
+- Enhanced image gallery with support for multi-image articles and better navigation. (#457)
 
 ### Changed
 

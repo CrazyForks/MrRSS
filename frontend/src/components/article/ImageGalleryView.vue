@@ -3,7 +3,7 @@ import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue';
 import { useAppStore } from '@/stores/app';
 import { useI18n } from 'vue-i18n';
 import type { Article } from '@/types/models';
-import { PhImage, PhHeart, PhList, PhFloppyDisk, PhGlobe } from '@phosphor-icons/vue';
+import { PhImage, PhHeart, PhList, PhFloppyDisk, PhGlobe, PhX } from '@phosphor-icons/vue';
 import { openInBrowser } from '@/utils/browser';
 
 const store = useAppStore();
@@ -29,6 +29,9 @@ const page = ref(1);
 const hasMore = ref(true);
 const selectedArticle = ref<Article | null>(null);
 const showImageViewer = ref(false);
+const allImages = ref<string[]>([]);
+const currentImageIndex = ref(0);
+const currentImageLoading = ref(false);
 const columns = ref<Article[][]>([]);
 const columnCount = ref(4);
 const containerRef = ref<HTMLElement | null>(null);
@@ -40,6 +43,7 @@ const contextMenu = ref<{ show: boolean; x: number; y: number; article: Article 
   y: 0,
   article: null,
 });
+const imageCountCache = ref<Map<number, number>>(new Map());
 
 // Compute which feed ID to fetch (if viewing a specific feed)
 const feedId = computed(() => store.currentFeedId);
@@ -74,12 +78,39 @@ async function fetchImages(loadMore = false) {
       }
 
       hasMore.value = newArticles.length >= ITEMS_PER_PAGE;
+
+      // Preload image counts for new articles
+      newArticles.forEach((article: Article) => {
+        if (!imageCountCache.value.has(article.id)) {
+          fetchImageCount(article.id);
+        }
+      });
     }
   } catch (e) {
     console.error('Failed to load images:', e);
   } finally {
     isLoading.value = false;
   }
+}
+
+// Fetch image count for an article
+async function fetchImageCount(articleId: number) {
+  try {
+    const res = await fetch(`/api/articles/extract-images?id=${articleId}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.images && Array.isArray(data.images)) {
+        imageCountCache.value.set(articleId, data.images.length);
+      }
+    }
+  } catch (e) {
+    console.error('Failed to fetch image count:', e);
+  }
+}
+
+// Get image count for an article
+function getImageCount(article: Article): number {
+  return imageCountCache.value.get(article.id) || 1;
 }
 
 // Calculate number of columns based on container width dynamically
@@ -162,14 +193,83 @@ async function toggleFavorite(article: Article, event: Event) {
 }
 
 // Open image viewer
-function openImage(article: Article) {
+async function openImage(article: Article) {
   selectedArticle.value = article;
   showImageViewer.value = true;
+  currentImageLoading.value = true;
+
+  // Fetch all images from the article
+  await fetchArticleImages(article);
 
   // Mark as read
   if (!article.is_read) {
     markAsRead(article);
   }
+}
+
+// Fetch all images from article content
+async function fetchArticleImages(article: Article) {
+  try {
+    const res = await fetch(`/api/articles/extract-images?id=${article.id}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.images && Array.isArray(data.images) && data.images.length > 0) {
+        allImages.value = data.images;
+        // Find the index of the article's main image
+        currentImageIndex.value = data.images.findIndex((img: string) => img === article.image_url);
+        if (currentImageIndex.value < 0) {
+          currentImageIndex.value = 0;
+        }
+      } else {
+        // Fallback to just the article's main image
+        allImages.value = [article.image_url || ''];
+        currentImageIndex.value = 0;
+      }
+    } else {
+      // Fallback on error
+      allImages.value = [article.image_url || ''];
+      currentImageIndex.value = 0;
+    }
+  } catch (e) {
+    console.error('Failed to fetch article images:', e);
+    // Fallback on error
+    allImages.value = [article.image_url || ''];
+    currentImageIndex.value = 0;
+  }
+}
+
+// Navigate to previous image
+function previousImage() {
+  if (currentImageIndex.value > 0) {
+    currentImageIndex.value--;
+  } else {
+    // Wrap to last image
+    currentImageIndex.value = allImages.value.length - 1;
+  }
+  // Reset loading state
+  currentImageLoading.value = true;
+}
+
+// Navigate to next image
+function nextImage() {
+  if (currentImageIndex.value < allImages.value.length - 1) {
+    currentImageIndex.value++;
+  } else {
+    // Wrap to first image
+    currentImageIndex.value = 0;
+  }
+  // Reset loading state
+  currentImageLoading.value = true;
+}
+
+// Handle image load
+function handleImageLoad() {
+  currentImageLoading.value = false;
+}
+
+// Handle image error
+function handleImageError() {
+  currentImageLoading.value = false;
 }
 
 // Mark article as read
@@ -190,6 +290,8 @@ async function markAsRead(article: Article) {
 function closeImageViewer() {
   showImageViewer.value = false;
   selectedArticle.value = null;
+  allImages.value = [];
+  currentImageIndex.value = 0;
 }
 
 // Format date
@@ -255,6 +357,22 @@ function openOriginal(article: Article) {
   closeContextMenu();
 }
 
+// Handle keyboard shortcuts
+function handleKeyDown(e: KeyboardEvent) {
+  // Only handle keyboard when image viewer is open
+  if (!showImageViewer.value) return;
+
+  if (e.key === 'Escape') {
+    closeImageViewer();
+  } else if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    previousImage();
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    nextImage();
+  }
+}
+
 // Watch for articles changes and rearrange
 watch(articles, () => {
   nextTick(() => {
@@ -267,6 +385,8 @@ watch(feedId, async () => {
   // Close image viewer when switching feeds
   showImageViewer.value = false;
   selectedArticle.value = null;
+  allImages.value = [];
+  currentImageIndex.value = 0;
 
   page.value = 1;
   articles.value = [];
@@ -283,6 +403,7 @@ onMounted(() => {
     containerRef.value.addEventListener('scroll', handleScroll);
   }
   window.addEventListener('click', closeContextMenu);
+  window.addEventListener('keydown', handleKeyDown);
 
   // Set up ResizeObserver to watch for container size changes
   if (containerRef.value) {
@@ -304,6 +425,7 @@ onUnmounted(() => {
     resizeObserver = null;
   }
   window.removeEventListener('click', closeContextMenu);
+  window.removeEventListener('keydown', handleKeyDown);
 });
 </script>
 
@@ -337,6 +459,11 @@ onUnmounted(() => {
               class="gallery-image"
               loading="lazy"
             />
+            <!-- Image count indicator -->
+            <div v-if="getImageCount(article) > 1" class="image-count-badge">
+              <PhImage :size="14" />
+              <span class="ml-1">{{ getImageCount(article) }}</span>
+            </div>
             <div class="image-overlay">
               <button class="favorite-btn" @click="toggleFavorite(article, $event)">
                 <PhHeart
@@ -373,17 +500,43 @@ onUnmounted(() => {
     <div
       v-if="showImageViewer && selectedArticle"
       class="image-viewer-modal"
+      data-image-viewer="true"
       @click="closeImageViewer"
     >
+      <button class="close-btn" @click="closeImageViewer">
+        <PhX :size="20" />
+      </button>
+
+      <!-- Image counter (when multiple images) -->
+      <div v-if="allImages.length > 1" class="image-counter">
+        {{ currentImageIndex + 1 }} / {{ allImages.length }}
+      </div>
+
+      <!-- Navigation buttons (when multiple images) -->
+      <template v-if="allImages.length > 1">
+        <button class="nav-btn nav-btn-prev" @click.stop="previousImage">‹</button>
+        <button class="nav-btn nav-btn-next" @click.stop="nextImage">›</button>
+      </template>
+
       <div class="image-viewer-content" @click.stop>
-        <button class="close-btn" @click="closeImageViewer">×</button>
-        <img :src="selectedArticle.image_url" :alt="selectedArticle.title" class="viewer-image" />
-        <div class="viewer-info">
+        <!-- Loading placeholder -->
+        <div v-if="currentImageLoading" class="image-loading-placeholder">
+          <div class="loading-spinner"></div>
+        </div>
+
+        <img
+          :src="allImages[currentImageIndex] || selectedArticle.image_url"
+          :alt="selectedArticle.title"
+          class="viewer-image"
+          :class="{ loading: currentImageLoading }"
+          @load="handleImageLoad"
+          @error="handleImageError"
+        />
+      </div>
+
+      <div class="viewer-info" @click.stop>
+        <div class="viewer-header">
           <h2 class="viewer-title">{{ selectedArticle.title }}</h2>
-          <div class="viewer-meta">
-            <span class="feed-name">{{ selectedArticle.feed_title }}</span>
-            <span class="image-date">{{ formatDate(selectedArticle.published_at) }}</span>
-          </div>
           <a
             :href="selectedArticle.url"
             target="_blank"
@@ -392,6 +545,10 @@ onUnmounted(() => {
           >
             {{ t('viewOriginal') }}
           </a>
+        </div>
+        <div class="viewer-meta">
+          <span class="feed-name">{{ selectedArticle.feed_title }}</span>
+          <span class="image-date">{{ formatDate(selectedArticle.published_at) }}</span>
         </div>
       </div>
     </div>
@@ -449,6 +606,13 @@ onUnmounted(() => {
   @apply w-full h-auto block;
 }
 
+.image-count-badge {
+  @apply absolute bottom-2 left-2 px-2 py-1 rounded-full;
+  @apply bg-black/60 text-white text-xs font-semibold;
+  @apply backdrop-blur-sm z-10;
+  @apply flex items-center gap-1;
+}
+
 .image-overlay {
   @apply absolute inset-0 bg-black/0 hover:bg-black/30 transition-all duration-200;
   @apply flex items-start justify-end p-2;
@@ -497,37 +661,93 @@ onUnmounted(() => {
 
 /* Image Viewer Modal */
 .image-viewer-modal {
-  @apply fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4;
-}
-
-.image-viewer-content {
-  @apply relative max-w-6xl max-h-full overflow-auto;
+  @apply fixed inset-0 z-50 bg-black/90 flex flex-col p-4;
 }
 
 .close-btn {
-  @apply absolute top-4 right-4 w-10 h-10 bg-black/50 hover:bg-black/70;
-  @apply rounded-full text-white text-3xl flex items-center justify-center;
-  @apply transition-colors duration-200 z-10;
+  @apply absolute top-4 right-4 w-8 h-8 bg-black/50 hover:bg-black/70;
+  @apply rounded-full text-white flex items-center justify-center;
+  @apply transition-colors duration-200 z-10 shrink-0;
+}
+
+/* Image counter */
+.image-counter {
+  @apply absolute top-4 left-4 px-2 py-1 rounded;
+  @apply text-white text-sm font-medium min-w-[60px] text-center;
+  @apply z-10 text-shadow;
+}
+
+/* Navigation buttons */
+.nav-btn {
+  @apply absolute top-1/2 -translate-y-1/2 w-12 h-12 rounded;
+  @apply text-white text-4xl;
+  @apply flex items-center justify-center transition-all duration-200;
+  @apply z-10 text-shadow;
+}
+
+.nav-btn-prev {
+  @apply left-4;
+}
+
+.nav-btn-next {
+  @apply right-4;
+}
+
+.nav-btn:hover {
+  @apply scale-110;
+}
+
+.nav-btn:active {
+  @apply scale-95;
+}
+
+/* Text shadow for better visibility on images */
+.text-shadow {
+  text-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.8),
+    0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.image-viewer-content {
+  @apply flex-1 flex items-center justify-center min-h-0 relative;
+}
+
+.image-loading-placeholder {
+  @apply absolute inset-0 flex items-center justify-center z-10;
+}
+
+.loading-spinner {
+  @apply w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin;
 }
 
 .viewer-image {
-  @apply max-w-full max-h-[80vh] object-contain;
+  @apply h-full w-full;
+  object-fit: contain;
+}
+
+.viewer-image.loading {
+  @apply opacity-0;
 }
 
 .viewer-info {
-  @apply bg-bg-primary p-4 mt-4 rounded-lg;
+  @apply bg-bg-primary px-3 py-3 rounded-md shrink-0;
+  background-color: var(--bg-primary);
+}
+
+.viewer-header {
+  @apply flex items-center justify-between gap-4 mb-2;
 }
 
 .viewer-title {
-  @apply text-lg font-bold text-text-primary mb-2;
+  @apply text-base font-bold text-text-primary flex-1 line-clamp-2;
 }
 
 .viewer-meta {
-  @apply flex items-center gap-4 text-sm text-text-secondary mb-4;
+  @apply flex items-center gap-4 text-sm text-text-secondary;
 }
 
 .view-original-btn {
-  @apply inline-block px-4 py-2 bg-accent text-white rounded-lg;
+  @apply px-3 py-1.5 bg-accent text-white rounded-md text-sm whitespace-nowrap;
   @apply hover:bg-accent-hover transition-colors duration-200;
 }
 
