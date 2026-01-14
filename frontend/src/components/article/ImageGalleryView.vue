@@ -3,7 +3,16 @@ import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue';
 import { useAppStore } from '@/stores/app';
 import { useI18n } from 'vue-i18n';
 import type { Article } from '@/types/models';
-import { PhImage, PhHeart, PhList, PhFloppyDisk, PhGlobe, PhX } from '@phosphor-icons/vue';
+import {
+  PhImage,
+  PhHeart,
+  PhList,
+  PhFloppyDisk,
+  PhGlobe,
+  PhX,
+  PhTextT,
+  PhTextTSlash,
+} from '@phosphor-icons/vue';
 import { openInBrowser } from '@/utils/browser';
 
 const store = useAppStore();
@@ -44,6 +53,18 @@ const contextMenu = ref<{ show: boolean; x: number; y: number; article: Article 
   article: null,
 });
 const imageCountCache = ref<Map<number, number>>(new Map());
+const showTextOverlay = ref(true);
+
+// Load showTextOverlay preference from localStorage
+const savedShowTextOverlay = localStorage.getItem('imageGalleryShowTextOverlay');
+if (savedShowTextOverlay !== null) {
+  showTextOverlay.value = savedShowTextOverlay === 'true';
+}
+
+// Watch for changes and save to localStorage
+watch(showTextOverlay, (newValue) => {
+  localStorage.setItem('imageGalleryShowTextOverlay', String(newValue));
+});
 
 // Compute which feed ID to fetch (if viewing a specific feed)
 const feedId = computed(() => store.currentFeedId);
@@ -445,11 +466,19 @@ onUnmounted(() => {
       >
         <PhList :size="24" />
       </button>
-      <div class="flex items-center gap-2 sm:gap-2">
+      <div class="flex items-center gap-2 sm:gap-2 flex-1">
         <h1 class="text-base sm:text-lg font-bold text-text-primary line-height-fixed-32">
           {{ t('imageGallery') }}
         </h1>
       </div>
+      <button
+        class="p-2 rounded hover:bg-bg-tertiary text-text-primary transition-colors"
+        :title="showTextOverlay ? t('hideText') : t('showText')"
+        @click="showTextOverlay = !showTextOverlay"
+      >
+        <PhTextTSlash v-if="showTextOverlay" :size="20" />
+        <PhTextT v-else :size="20" />
+      </button>
     </div>
 
     <!-- Masonry Grid -->
@@ -458,7 +487,7 @@ onUnmounted(() => {
         <div
           v-for="article in column"
           :key="article.id"
-          class="cursor-pointer"
+          class="cursor-pointer group"
           @click="openImage(article)"
           @contextmenu="handleContextMenu($event, article)"
         >
@@ -480,7 +509,7 @@ onUnmounted(() => {
               <span class="ml-1">{{ getImageCount(article) }}</span>
             </div>
             <div
-              class="absolute inset-0 bg-black/0 hover:bg-black/30 transition-all duration-200 flex items-start justify-end p-2 group"
+              class="absolute inset-0 bg-black/0 hover:bg-black/30 transition-all duration-200 flex items-start justify-end p-2"
             >
               <button
                 class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/50 rounded-full p-1.5 hover:bg-black/70"
@@ -493,8 +522,21 @@ onUnmounted(() => {
                 />
               </button>
             </div>
+            <!-- Hover overlay when text is hidden -->
+            <div
+              v-if="!showTextOverlay"
+              class="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/80 via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+            >
+              <p class="text-sm font-medium text-white line-clamp-2 mb-1">
+                {{ article.title }}
+              </p>
+              <div class="flex items-center justify-between text-xs text-white/80">
+                <span class="truncate flex-1">{{ article.feed_title }}</span>
+                <span class="ml-2 shrink-0">{{ formatDate(article.published_at) }}</span>
+              </div>
+            </div>
           </div>
-          <div class="p-2">
+          <div v-if="showTextOverlay" class="p-2">
             <p class="text-sm font-medium text-text-primary line-clamp-2 mb-1">
               {{ article.title }}
             </p>
