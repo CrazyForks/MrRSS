@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Supported Anthoropic and DeepSeek AI services.
 - Supported hiding text overlay in image gallery view. (#486)
 - Supported displaying if a feed is image gallery mode in the feed list. (#485)
+- Supported customizing translation service endpoint. (#383)
 
 ### Changed
 

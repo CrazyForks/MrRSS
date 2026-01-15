@@ -21,6 +21,15 @@ export interface SettingsData {
   close_to_tray: boolean;
   compact_mode: boolean;
   custom_css_file: string;
+  custom_translation_body_template: string;
+  custom_translation_enabled: boolean;
+  custom_translation_endpoint: string;
+  custom_translation_headers: string;
+  custom_translation_lang_mapping: string;
+  custom_translation_method: string;
+  custom_translation_name: string;
+  custom_translation_response_path: string;
+  custom_translation_timeout: number;
   deepl_api_key: string;
   deepl_endpoint: string;
   default_view_mode: string;

@@ -206,6 +206,7 @@ func main() {
 	apiMux.HandleFunc("/api/articles/clear-translations", func(w http.ResponseWriter, r *http.Request) { translationhandlers.HandleClearTranslations(h, w, r) })
 	apiMux.HandleFunc("/api/ai-usage", func(w http.ResponseWriter, r *http.Request) { translationhandlers.HandleGetAIUsage(h, w, r) })
 	apiMux.HandleFunc("/api/ai-usage/reset", func(w http.ResponseWriter, r *http.Request) { translationhandlers.HandleResetAIUsage(h, w, r) })
+	apiMux.HandleFunc("/api/translation/test-custom", func(w http.ResponseWriter, r *http.Request) { translationhandlers.HandleTestCustomTranslation(h, w, r) })
 	apiMux.HandleFunc("/api/ai-chat", func(w http.ResponseWriter, r *http.Request) { chat.HandleAIChat(h, w, r) })
 	apiMux.HandleFunc("/api/ai/chat/sessions/delete-all", func(w http.ResponseWriter, r *http.Request) { chat.HandleDeleteAllSessions(h, w, r) })
 	apiMux.HandleFunc("/api/ai/chat/sessions", func(w http.ResponseWriter, r *http.Request) { chat.HandleListSessions(h, w, r) })

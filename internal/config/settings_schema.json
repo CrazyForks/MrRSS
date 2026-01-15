@@ -116,6 +116,69 @@
       "encrypted": true,
       "frontend_key": "baiduSecretKey"
     },
+    "custom_translation_enabled": {
+      "type": "bool",
+      "default": false,
+      "category": "translation",
+      "encrypted": false,
+      "frontend_key": "customTranslationEnabled"
+    },
+    "custom_translation_name": {
+      "type": "string",
+      "default": "",
+      "category": "translation",
+      "encrypted": false,
+      "frontend_key": "customTranslationName"
+    },
+    "custom_translation_endpoint": {
+      "type": "string",
+      "default": "",
+      "category": "translation",
+      "encrypted": false,
+      "frontend_key": "customTranslationEndpoint"
+    },
+    "custom_translation_method": {
+      "type": "string",
+      "default": "POST",
+      "category": "translation",
+      "encrypted": false,
+      "frontend_key": "customTranslationMethod"
+    },
+    "custom_translation_headers": {
+      "type": "string",
+      "default": "",
+      "category": "translation",
+      "encrypted": false,
+      "frontend_key": "customTranslationHeaders"
+    },
+    "custom_translation_body_template": {
+      "type": "string",
+      "default": "",
+      "category": "translation",
+      "encrypted": false,
+      "frontend_key": "customTranslationBodyTemplate"
+    },
+    "custom_translation_response_path": {
+      "type": "string",
+      "default": "",
+      "category": "translation",
+      "encrypted": false,
+      "frontend_key": "customTranslationResponsePath"
+    },
+    "custom_translation_lang_mapping": {
+      "type": "string",
+      "default": "",
+      "category": "translation",
+      "encrypted": false,
+      "frontend_key": "customTranslationLangMapping"
+    },
+    "custom_translation_timeout": {
+      "type": "int",
+      "default": 10,
+      "category": "translation",
+      "encrypted": false,
+      "frontend_key": "customTranslationTimeout"
+    },
     "ai_api_key": {
       "type": "string",
       "default": "",

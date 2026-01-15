@@ -29,6 +29,15 @@ export function generateInitialSettings(): SettingsData {
     close_to_tray: settingsDefaults.close_to_tray,
     compact_mode: settingsDefaults.compact_mode,
     custom_css_file: settingsDefaults.custom_css_file,
+    custom_translation_body_template: settingsDefaults.custom_translation_body_template,
+    custom_translation_enabled: settingsDefaults.custom_translation_enabled,
+    custom_translation_endpoint: settingsDefaults.custom_translation_endpoint,
+    custom_translation_headers: settingsDefaults.custom_translation_headers,
+    custom_translation_lang_mapping: settingsDefaults.custom_translation_lang_mapping,
+    custom_translation_method: settingsDefaults.custom_translation_method,
+    custom_translation_name: settingsDefaults.custom_translation_name,
+    custom_translation_response_path: settingsDefaults.custom_translation_response_path,
+    custom_translation_timeout: settingsDefaults.custom_translation_timeout,
     deepl_api_key: settingsDefaults.deepl_api_key,
     deepl_endpoint: settingsDefaults.deepl_endpoint,
     default_view_mode: settingsDefaults.default_view_mode,
@@ -100,7 +109,7 @@ export function generateInitialSettings(): SettingsData {
  * This should be used in useSettings() fetchSettings() to parse backend data
  */
 export function parseSettingsData(data: Record<string, string>): SettingsData {
-  return {
+  const parsed = {
     ai_api_key: data.ai_api_key || settingsDefaults.ai_api_key,
     ai_chat_enabled: data.ai_chat_enabled === 'true',
     ai_custom_headers: data.ai_custom_headers || settingsDefaults.ai_custom_headers,
@@ -117,6 +126,23 @@ export function parseSettingsData(data: Record<string, string>): SettingsData {
     close_to_tray: data.close_to_tray === 'true',
     compact_mode: data.compact_mode === 'true',
     custom_css_file: data.custom_css_file || settingsDefaults.custom_css_file,
+    custom_translation_body_template:
+      data.custom_translation_body_template || settingsDefaults.custom_translation_body_template,
+    custom_translation_enabled: data.custom_translation_enabled === 'true',
+    custom_translation_endpoint:
+      data.custom_translation_endpoint || settingsDefaults.custom_translation_endpoint,
+    custom_translation_headers:
+      data.custom_translation_headers || settingsDefaults.custom_translation_headers,
+    custom_translation_lang_mapping:
+      data.custom_translation_lang_mapping || settingsDefaults.custom_translation_lang_mapping,
+    custom_translation_method:
+      data.custom_translation_method || settingsDefaults.custom_translation_method,
+    custom_translation_name:
+      data.custom_translation_name || settingsDefaults.custom_translation_name,
+    custom_translation_response_path:
+      data.custom_translation_response_path || settingsDefaults.custom_translation_response_path,
+    custom_translation_timeout:
+      parseInt(data.custom_translation_timeout) || settingsDefaults.custom_translation_timeout,
     deepl_api_key: data.deepl_api_key || settingsDefaults.deepl_api_key,
     deepl_endpoint: data.deepl_endpoint || settingsDefaults.deepl_endpoint,
     default_view_mode: data.default_view_mode || settingsDefaults.default_view_mode,
@@ -189,6 +215,8 @@ export function parseSettingsData(data: Record<string, string>): SettingsData {
     window_x: data.window_x || settingsDefaults.window_x,
     window_y: data.window_y || settingsDefaults.window_y,
   } as SettingsData;
+
+  return parsed;
 }
 
 /**
@@ -220,6 +248,29 @@ export function buildAutoSavePayload(settingsRef: Ref<SettingsData>): Record<str
     close_to_tray: (settingsRef.value.close_to_tray ?? settingsDefaults.close_to_tray).toString(),
     compact_mode: (settingsRef.value.compact_mode ?? settingsDefaults.compact_mode).toString(),
     custom_css_file: settingsRef.value.custom_css_file ?? settingsDefaults.custom_css_file,
+    custom_translation_body_template:
+      settingsRef.value.custom_translation_body_template ??
+      settingsDefaults.custom_translation_body_template,
+    custom_translation_enabled: (
+      settingsRef.value.custom_translation_enabled ?? settingsDefaults.custom_translation_enabled
+    ).toString(),
+    custom_translation_endpoint:
+      settingsRef.value.custom_translation_endpoint ?? settingsDefaults.custom_translation_endpoint,
+    custom_translation_headers:
+      settingsRef.value.custom_translation_headers ?? settingsDefaults.custom_translation_headers,
+    custom_translation_lang_mapping:
+      settingsRef.value.custom_translation_lang_mapping ??
+      settingsDefaults.custom_translation_lang_mapping,
+    custom_translation_method:
+      settingsRef.value.custom_translation_method ?? settingsDefaults.custom_translation_method,
+    custom_translation_name:
+      settingsRef.value.custom_translation_name ?? settingsDefaults.custom_translation_name,
+    custom_translation_response_path:
+      settingsRef.value.custom_translation_response_path ??
+      settingsDefaults.custom_translation_response_path,
+    custom_translation_timeout: (
+      settingsRef.value.custom_translation_timeout ?? settingsDefaults.custom_translation_timeout
+    ).toString(),
     deepl_api_key: settingsRef.value.deepl_api_key ?? settingsDefaults.deepl_api_key,
     deepl_endpoint: settingsRef.value.deepl_endpoint ?? settingsDefaults.deepl_endpoint,
     default_view_mode: settingsRef.value.default_view_mode ?? settingsDefaults.default_view_mode,

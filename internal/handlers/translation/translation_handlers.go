@@ -334,3 +334,59 @@ func HandleGetAIUsage(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 func EstimateTokens(text string) int64 {
 	return aiusage.EstimateTokens(text)
 }
+
+// HandleTestCustomTranslation tests a custom translation configuration.
+// @Summary      Test custom translation
+// @Description  Test a custom translation API configuration
+// @Tags         translation
+// @Accept       json
+// @Produce      json
+// @Param        request  body      TestCustomTranslationRequest  true  "Test request"
+// @Success      200  {object}  TestCustomTranslationResponse  "Test result"
+// @Failure      400  {object}  map[string]string  "Bad request"
+// @Router       /translation/test-custom [post]
+func HandleTestCustomTranslation(h *core.Handler, w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		Text   string                             `json:"text"`
+		Target string                             `json:"target_lang"`
+		Config translation.CustomTranslatorConfig `json:"config"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Set defaults
+	if req.Text == "" {
+		req.Text = "Hello, world!"
+	}
+	if req.Target == "" {
+		req.Target = "zh"
+	}
+
+	// Create custom translator
+	customTranslator := translation.NewCustomTranslator(&req.Config)
+
+	// Test translation
+	result, err := customTranslator.Translate(req.Text, req.Target)
+
+	response := map[string]interface{}{
+		"success": err == nil,
+	}
+
+	if err != nil {
+		response["error"] = err.Error()
+		w.WriteHeader(http.StatusBadRequest)
+	} else {
+		response["translation"] = result
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
