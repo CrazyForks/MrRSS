@@ -458,6 +458,9 @@ export interface TranslationMessages {
   ruleNamePlaceholder: string;
   rules: string;
   ruleSavedSuccess: string;
+  unsavedChangesTitle: string;
+  unsavedChangesMessage: string;
+  discard: string;
   rulesDesc: string;
   saveChanges: string;
   saveSettings: string;
