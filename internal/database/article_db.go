@@ -506,6 +506,60 @@ func (db *DB) GetImageModeCountsForAllFeeds() (map[int64]int, error) {
 	return counts, rows.Err()
 }
 
+// GetFavoriteUnreadCountsForAllFeeds returns a map of feed_id to favorite AND unread article count.
+func (db *DB) GetFavoriteUnreadCountsForAllFeeds() (map[int64]int, error) {
+	db.WaitForReady()
+	rows, err := db.Query(`
+		SELECT feed_id, COUNT(*)
+		FROM articles
+		WHERE is_favorite = 1 AND is_read = 0 AND is_hidden = 0
+		GROUP BY feed_id
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	counts := make(map[int64]int)
+	for rows.Next() {
+		var feedID int64
+		var count int
+		if err := rows.Scan(&feedID, &count); err != nil {
+			log.Println("Error scanning favorite unread count:", err)
+			continue
+		}
+		counts[feedID] = count
+	}
+	return counts, rows.Err()
+}
+
+// GetReadLaterUnreadCountsForAllFeeds returns a map of feed_id to read_later AND unread article count.
+func (db *DB) GetReadLaterUnreadCountsForAllFeeds() (map[int64]int, error) {
+	db.WaitForReady()
+	rows, err := db.Query(`
+		SELECT feed_id, COUNT(*)
+		FROM articles
+		WHERE is_read_later = 1 AND is_read = 0 AND is_hidden = 0
+		GROUP BY feed_id
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	counts := make(map[int64]int)
+	for rows.Next() {
+		var feedID int64
+		var count int
+		if err := rows.Scan(&feedID, &count); err != nil {
+			log.Println("Error scanning read_later unread count:", err)
+			continue
+		}
+		counts[feedID] = count
+	}
+	return counts, rows.Err()
+}
+
 // MarkAllAsReadForFeed marks all articles in a feed as read.
 func (db *DB) MarkAllAsReadForFeed(feedID int64) error {
 	db.WaitForReady()

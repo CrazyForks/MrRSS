@@ -243,7 +243,9 @@ export const useAppStore = defineStore('app', () => {
   const filterCounts = ref<Record<string, Record<number | string, number>>>({
     unread: {},
     favorites: {},
+    favorites_unread: {},
     read_later: {},
+    read_later_unread: {},
     images: {},
   });
 
@@ -254,7 +256,9 @@ export const useAppStore = defineStore('app', () => {
       filterCounts.value = {
         unread: data.unread || {},
         favorites: data.favorites || {},
+        favorites_unread: data.favorites_unread || {},
         read_later: data.read_later || {},
+        read_later_unread: data.read_later_unread || {},
         images: data.images || {},
       };
     } catch (e) {
@@ -262,7 +266,9 @@ export const useAppStore = defineStore('app', () => {
       filterCounts.value = {
         unread: {},
         favorites: {},
+        favorites_unread: {},
         read_later: {},
+        read_later_unread: {},
         images: {},
       };
     }

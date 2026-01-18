@@ -73,12 +73,17 @@ export function useArticleDetail() {
   }
 
   // Mark article as read if it's not already read
-  function markAsReadIfNeeded(article: Article) {
+  async function markAsReadIfNeeded(article: Article) {
     if (!article.is_read) {
       article.is_read = true;
-      fetch(`/api/articles/read?id=${article.id}&read=true`, {
-        method: 'POST',
-      });
+      try {
+        await fetch(`/api/articles/read?id=${article.id}&read=true`, {
+          method: 'POST',
+        });
+        store.fetchUnreadCounts();
+      } catch (e) {
+        console.error('Error marking as read:', e);
+      }
     }
   }
 

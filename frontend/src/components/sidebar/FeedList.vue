@@ -37,6 +37,7 @@ function toggleEditMode() {
 const {
   tree,
   categoryUnreadCounts,
+  feedUnreadCounts,
   toggleCategory,
   isCategoryOpen: checkIsCategoryOpen,
   searchQuery,
@@ -415,7 +416,7 @@ function handleTogglePin() {
               :is-active="store.currentCategory === name"
               :unread-count="categoryUnreadCounts[name] || 0"
               :current-feed-id="store.currentFeedId"
-              :feed-unread-counts="store.unreadCounts.feedCounts"
+              :feed-unread-counts="feedUnreadCounts"
               :is-drag-over="dragOverCategory === name"
               :is-edit-mode="isEditMode"
               :drop-preview="dropPreview"
@@ -452,7 +453,7 @@ function handleTogglePin() {
               :is-uncategorized="true"
               :unread-count="categoryUnreadCounts['uncategorized'] || 0"
               :current-feed-id="store.currentFeedId"
-              :feed-unread-counts="store.unreadCounts.feedCounts"
+              :feed-unread-counts="feedUnreadCounts"
               :is-drag-over="dragOverCategory === 'uncategorized'"
               :is-edit-mode="isEditMode"
               :drop-preview="dropPreview"
