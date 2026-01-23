@@ -30,6 +30,7 @@ const emit = defineEmits<{
   'delete-feed': [id: number];
   'batch-delete': [ids: number[]];
   'batch-move': [ids: number[]];
+  'select-feed': [feedId: number];
 }>();
 
 const selectedFeeds: Ref<number[]> = ref([]);
@@ -187,6 +188,24 @@ function isFreshRSSFeed(feed: Feed): boolean {
 
 function isRSSHubFeed(feed: Feed): boolean {
   return feed.url.startsWith('rsshub://');
+}
+
+async function handleFeedClick(feed: Feed, event: Event) {
+  // Don't select feed if clicking on checkbox, edit button, or delete button
+  const target = event.target as HTMLElement;
+  if (
+    target.tagName === 'INPUT' ||
+    target.tagName === 'BUTTON' ||
+    target.closest('button') ||
+    target.closest('input[type="checkbox"]')
+  ) {
+    return;
+  }
+  // Reset to 'all' filter first to ensure proper navigation
+  await store.setFilter('all');
+  // Select the feed and emit event to close settings modal
+  store.setFeed(feed.id);
+  emit('select-feed', feed.id);
 }
 </script>
 
@@ -371,9 +390,10 @@ function isRSSHubFeed(feed: Feed): boolean {
           v-for="feed in sortedFeeds"
           :key="feed.id"
           :class="[
-            'grid grid-cols-[auto,auto,1fr,auto] sm:grid-cols-[16px,16px,1fr,90px,100px,40px,44px,52px] lg:grid-cols-[16px,16px,2fr,100px,110px,40px,44px,52px] gap-1.5 sm:gap-2 p-1.5 sm:p-2 border-b border-border last:border-0 items-center',
+            'grid grid-cols-[auto,auto,1fr,auto] sm:grid-cols-[16px,16px,1fr,90px,100px,40px,44px,52px] lg:grid-cols-[16px,16px,2fr,100px,110px,40px,44px,52px] gap-1.5 sm:gap-2 p-1.5 sm:p-2 border-b border-border last:border-0 items-center cursor-pointer',
             feed.is_freshrss_source ? 'bg-info/10' : 'bg-bg-primary hover:bg-bg-secondary',
           ]"
+          @click="handleFeedClick(feed, $event)"
         >
           <!-- Checkbox -->
           <input

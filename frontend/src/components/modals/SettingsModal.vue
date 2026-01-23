@@ -216,6 +216,7 @@ function handleDiscoverAll() {
             @batch-delete="handleBatchDelete"
             @batch-move="handleBatchMove"
             @discover-all="handleDiscoverAll"
+            @select-feed="emit('close')"
             @update:settings="settings = $event"
           />
 

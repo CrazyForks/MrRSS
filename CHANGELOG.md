@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Supported customizing typo style. (#488)
 - Supported marking below/above as readed. (#390, #524)
 - Supported opening in external browser in default. (#551)
+- Supported jumping to specific feed when clicking feed in settings page. (#548)
 
 ### Changed
 
