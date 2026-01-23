@@ -3,6 +3,8 @@ import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useSettings } from '@/composables/core/useSettings';
 import { PhPalette, PhUpload, PhTrash, PhCheck, PhBookOpen } from '@phosphor-icons/vue';
+import { SettingGroup, SettingItem } from '@/components/settings';
+import '@/components/settings/styles.css';
 import type { SettingsData } from '@/types/settings';
 import { openInBrowser } from '@/utils/browser';
 
@@ -54,7 +56,7 @@ const handleFileUpload = async () => {
 
     if (result.status === 'success') {
       console.log('CSS upload successful:', result);
-      window.showToast(t('cssFileUploaded'), 'success');
+      window.showToast(t('setting.customization.cssUploaded'), 'success');
 
       // Reload settings from backend to update composable
       try {
@@ -72,11 +74,11 @@ const handleFileUpload = async () => {
       window.dispatchEvent(new CustomEvent('custom-css-changed'));
     } else {
       console.error('CSS upload failed:', result);
-      window.showToast(result.message || t('cssFileUploadFailed'), 'error');
+      window.showToast(result.message || t('setting.customization.cssUploadFailed'), 'error');
     }
   } catch (error) {
     console.error('CSS upload error:', error);
-    window.showToast(t('cssFileUploadFailed'), 'error');
+    window.showToast(t('setting.customization.cssUploadFailed'), 'error');
   } finally {
     uploading.value = false;
   }
@@ -100,7 +102,7 @@ const handleDeleteCSS = async () => {
     const result = await response.json();
     console.log('Delete response:', result);
 
-    window.showToast(t('cssFileDeleted'), 'success');
+    window.showToast(t('setting.customization.cssDeleted'), 'success');
 
     // Reload settings from backend to update composable
     try {
@@ -117,7 +119,7 @@ const handleDeleteCSS = async () => {
     window.dispatchEvent(new CustomEvent('custom-css-changed'));
   } catch (error) {
     console.error('Failed to delete CSS file:', error);
-    window.showToast(t('cssFileDeleteFailed'), 'error');
+    window.showToast(t('setting.customization.cssDeleteFailed'), 'error');
   } finally {
     deleteLoading.value = false;
   }
@@ -125,93 +127,62 @@ const handleDeleteCSS = async () => {
 </script>
 
 <template>
-  <div class="setting-section">
-    <label class="section-label">
-      <PhPalette :size="16" class="w-4 h-4" />
-      {{ t('customization') }}
-    </label>
-
+  <SettingGroup :icon="PhPalette" :title="t('setting.tab.customization')">
     <!-- Custom CSS Setting -->
-    <div class="setting-item">
-      <div class="flex-1 flex items-center sm:items-start gap-2 sm:gap-3 min-w-0">
-        <PhPalette :size="20" class="text-text-secondary mt-0.5 shrink-0 sm:w-6 sm:h-6" />
-        <div class="flex-1 min-w-0">
-          <div class="font-medium mb-0 sm:mb-1 text-sm sm:text-base">
-            {{ t('customCSS') }}
-          </div>
-          <div class="text-xs text-text-secondary hidden sm:block">
-            {{ t('customCSSDesc') }}
-          </div>
-          <div v-if="hasCustomCSS" class="flex items-center gap-1 mt-1">
-            <PhCheck :size="14" class="text-green-500" />
-            <span class="text-xs text-text-secondary">{{ t('customCSSApplied') }}</span>
-          </div>
-          <!-- Documentation Link -->
+    <SettingItem :icon="PhPalette" :title="t('setting.customization.css')">
+      <template #description>
+        <div class="text-xs text-text-secondary hidden sm:block">
+          {{ t('setting.customization.cssDesc') }}
+        </div>
+        <div v-if="hasCustomCSS" class="flex items-center gap-1 mt-1">
+          <PhCheck :size="14" class="text-green-500" />
+          <span class="text-xs text-text-secondary">{{
+            t('setting.customization.cssApplied')
+          }}</span>
+        </div>
+        <!-- Documentation Link -->
+        <button
+          type="button"
+          class="text-xs text-accent hover:underline flex items-center gap-1 mt-1"
+          @click="openDocumentation"
+        >
+          <PhBookOpen :size="12" />
+          {{ t('setting.customization.cssGuide') }}
+        </button>
+      </template>
+
+      <template #action>
+        <div class="flex items-center gap-2">
           <button
-            type="button"
-            class="text-xs text-accent hover:underline flex items-center gap-1 mt-1"
-            @click="openDocumentation"
+            v-if="!hasCustomCSS"
+            class="btn-secondary"
+            :disabled="uploading"
+            @click="handleFileUpload"
           >
-            <PhBookOpen :size="12" />
-            {{ t('customCSSGuide') }}
+            <PhUpload v-if="!uploading" :size="16" class="sm:w-5 sm:h-5" />
+            <span class="hidden sm:inline">{{
+              uploading ? t('common.pagination.uploading') : t('setting.customization.cssUpload')
+            }}</span>
+          </button>
+          <button
+            v-if="hasCustomCSS"
+            class="btn-danger"
+            :disabled="deleteLoading"
+            @click="handleDeleteCSS"
+          >
+            <PhTrash v-if="!deleteLoading" :size="16" class="sm:w-5 sm:h-5" />
+            <span class="hidden sm:inline">{{
+              deleteLoading ? t('common.pagination.deleting') : t('setting.customization.deleteCSS')
+            }}</span>
           </button>
         </div>
-      </div>
-      <div class="flex items-center gap-2">
-        <button
-          v-if="!hasCustomCSS"
-          class="btn-secondary"
-          :disabled="uploading"
-          @click="handleFileUpload"
-        >
-          <PhUpload v-if="!uploading" :size="16" class="sm:w-5 sm:h-5" />
-          <span class="hidden sm:inline">{{ uploading ? t('uploading') : t('uploadCSS') }}</span>
-        </button>
-        <button
-          v-if="hasCustomCSS"
-          class="btn-danger"
-          :disabled="deleteLoading"
-          @click="handleDeleteCSS"
-        >
-          <PhTrash v-if="!deleteLoading" :size="16" class="sm:w-5 sm:h-5" />
-          <span class="hidden sm:inline">{{ deleteLoading ? t('deleting') : t('deleteCSS') }}</span>
-        </button>
-      </div>
-    </div>
-  </div>
+      </template>
+    </SettingItem>
+  </SettingGroup>
 </template>
 
 <style scoped>
 @reference "../../../../style.css";
-
-.section-label {
-  @apply font-semibold mb-3 sm:mb-4 text-text-secondary uppercase text-xs tracking-wider flex items-center gap-2;
-}
-
-.input-field {
-  @apply p-1.5 sm:p-2.5 border border-border rounded-md bg-bg-secondary text-text-primary focus:border-accent focus:outline-none transition-colors;
-}
-
-.toggle {
-  @apply w-10 h-5 appearance-none bg-bg-tertiary rounded-full relative cursor-pointer border border-border transition-colors checked:bg-accent checked:border-accent shrink-0;
-}
-
-.toggle::after {
-  content: '';
-  @apply absolute top-0.5 left-0.5 w-3.5 h-3.5 bg-white rounded-full shadow-sm transition-transform;
-}
-
-.toggle:checked::after {
-  transform: translateX(20px);
-}
-
-.setting-item {
-  @apply flex items-center sm:items-start justify-between gap-2 sm:gap-4 p-2 sm:p-3 rounded-lg bg-bg-secondary border border-border;
-}
-
-.btn-secondary {
-  @apply bg-bg-tertiary border border-border text-text-primary px-3 sm:px-4 py-1.5 sm:py-2 rounded-md cursor-pointer flex items-center gap-1.5 sm:gap-2 font-medium hover:bg-bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
-}
 
 .btn-danger {
   @apply bg-bg-tertiary border border-border text-red-500 px-3 sm:px-4 py-1.5 sm:py-2 rounded-md cursor-pointer flex items-center gap-1.5 sm:gap-2 font-medium hover:bg-bg-secondary transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
