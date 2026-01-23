@@ -275,17 +275,29 @@ defineExpose({
   z-index: 20;
 }
 
-@media (max-width: 767px) {
+/* Smaller screens (laptops, tablets) */
+@media (max-width: 1400px) {
   .smart-activity-bar {
     width: 48px;
     min-width: 48px;
   }
-}
 
-@media (max-width: 767px) {
   button[style*='width: 44px'] {
     width: 40px !important;
     height: 40px !important;
+  }
+}
+
+/* Mobile devices */
+@media (max-width: 767px) {
+  .smart-activity-bar {
+    width: 44px;
+    min-width: 44px;
+  }
+
+  button[style*='width: 44px'] {
+    width: 36px !important;
+    height: 36px !important;
   }
 }
 </style>
