@@ -53,7 +53,9 @@ const containerRef = ref<HTMLElement | null>(null);
 let resizeObserver: ResizeObserver | null = null;
 const imageCountCache = ref<Map<number, number>>(new Map());
 const showTextOverlay = ref(true);
+const showThumbnailStrip = ref(true);
 const thumbnailStripRef = ref<HTMLElement | null>(null);
+const thumbnailStripWidth = ref(0);
 
 // Image viewer zoom and pan
 const scale = ref(1);
@@ -68,9 +70,19 @@ if (savedShowTextOverlay !== null) {
   showTextOverlay.value = savedShowTextOverlay === 'true';
 }
 
+// Load showThumbnailStrip preference from localStorage
+const savedShowThumbnailStrip = localStorage.getItem('imageGalleryShowThumbnailStrip');
+if (savedShowThumbnailStrip !== null) {
+  showThumbnailStrip.value = savedShowThumbnailStrip === 'true';
+}
+
 // Watch for changes and save to localStorage
 watch(showTextOverlay, (newValue) => {
   localStorage.setItem('imageGalleryShowTextOverlay', String(newValue));
+});
+
+watch(showThumbnailStrip, (newValue) => {
+  localStorage.setItem('imageGalleryShowThumbnailStrip', String(newValue));
 });
 
 // Compute which feed ID to fetch (if viewing a specific feed)
@@ -113,6 +125,15 @@ const canNavigateNext = computed(() => {
   if (currentArticleIndex.value >= 0 && currentArticleIndex.value < articles.value.length - 1)
     return true;
   return false;
+});
+
+// Check if thumbnails should be centered (when they don't fill the container)
+const shouldCenterThumbnails = computed(() => {
+  if (allImages.value.length === 0) return false;
+  // Each thumbnail is 64px (w-16) + 8px (gap-2) = 72px
+  const thumbnailWidth = 72;
+  const totalThumbnailsWidth = allImages.value.length * thumbnailWidth;
+  return totalThumbnailsWidth < thumbnailStripWidth.value;
 });
 
 // Fetch image gallery articles
@@ -822,6 +843,21 @@ watch(category, async () => {
   calculateColumns();
 });
 
+// Update thumbnail strip width when the ref is available
+watch(thumbnailStripRef, () => {
+  if (thumbnailStripRef.value) {
+    thumbnailStripWidth.value = thumbnailStripRef.value.offsetWidth;
+  }
+});
+
+// Watch for allImages changes and update thumbnail strip width
+watch(allImages, async () => {
+  await nextTick();
+  if (thumbnailStripRef.value) {
+    thumbnailStripWidth.value = thumbnailStripRef.value.offsetWidth;
+  }
+});
+
 onMounted(() => {
   fetchImages();
   if (containerRef.value) {
@@ -979,9 +1015,9 @@ onUnmounted(() => {
       @click="closeImageViewer"
     >
       <!-- Top bar: Close button, Image counter, Zoom controls, Action buttons -->
-      <div class="flex items-center justify-between shrink-0 mb-2" @click.stop>
-        <div class="flex items-center gap-2">
-          <!-- Image counter -->
+      <div class="relative shrink-0 mb-2" @click.stop>
+        <!-- Left: Image counter -->
+        <div class="absolute left-0 top-0 flex items-center gap-2">
           <div
             v-if="allImages.length > 1"
             class="px-2 py-1 rounded bg-black/50 text-white text-sm font-medium min-w-[60px] text-center backdrop-blur-sm"
@@ -990,10 +1026,11 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div class="flex items-center gap-2">
+        <!-- Center: Zoom controls and Action buttons -->
+        <div class="flex items-center justify-center gap-2">
           <!-- Zoom controls -->
           <button
-            class="px-2 py-1.5 rounded bg-black/50 hover:bg-black/70 text-white transition-colors"
+            class="px-2 py-1.5 rounded bg-black/50 hover:bg-black/70 text-white transition-all duration-200 hover:scale-105 active:scale-95"
             :disabled="scale <= MIN_SCALE"
             :title="t('common.imageViewer.zoomOut')"
             @click="zoomOut"
@@ -1006,7 +1043,7 @@ onUnmounted(() => {
             {{ Math.round(scale * 100) }}%
           </span>
           <button
-            class="px-2 py-1.5 rounded bg-black/50 hover:bg-black/70 text-white transition-colors"
+            class="px-2 py-1.5 rounded bg-black/50 hover:bg-black/70 text-white transition-all duration-200 hover:scale-105 active:scale-95"
             :disabled="scale >= MAX_SCALE"
             :title="t('common.imageViewer.zoomIn')"
             @click="zoomIn"
@@ -1016,21 +1053,21 @@ onUnmounted(() => {
 
           <!-- Action buttons -->
           <button
-            class="px-2 py-1.5 rounded bg-black/50 hover:bg-black/70 text-white transition-colors"
+            class="px-2 py-1.5 rounded bg-black/50 hover:bg-black/70 text-white transition-all duration-200 hover:scale-105 active:scale-95"
             :title="t('common.contextMenu.copyImage')"
             @click="copyImage(currentImageUrl)"
           >
             <PhCopy :size="20" />
           </button>
           <button
-            class="px-2 py-1.5 rounded bg-black/50 hover:bg-black/70 text-white transition-colors"
+            class="px-2 py-1.5 rounded bg-black/50 hover:bg-black/70 text-white transition-all duration-200 hover:scale-105 active:scale-95"
             :title="t('common.contextMenu.downloadImage')"
             @click="downloadImage(currentImageUrl)"
           >
             <PhDownloadSimple :size="20" />
           </button>
           <button
-            class="px-2 py-1.5 rounded bg-black/50 hover:bg-black/70 text-white transition-colors"
+            class="px-2 py-1.5 rounded bg-black/50 hover:bg-black/70 text-white transition-all duration-200 hover:scale-105 active:scale-95"
             :title="
               selectedArticle.is_favorite
                 ? t('article.imageGallery.actionUnfavorite')
@@ -1046,13 +1083,15 @@ onUnmounted(() => {
           </button>
         </div>
 
-        <!-- Close button -->
-        <button
-          class="w-8 h-8 bg-black/50 hover:bg-black/70 rounded-full text-white flex items-center justify-center transition-colors"
-          @click="closeImageViewer"
-        >
-          <PhX :size="20" />
-        </button>
+        <!-- Right: Close button -->
+        <div class="absolute right-0 top-0">
+          <button
+            class="w-8 h-8 bg-black/50 hover:bg-black/70 rounded-full text-white flex items-center justify-center transition-colors"
+            @click="closeImageViewer"
+          >
+            <PhX :size="20" />
+          </button>
+        </div>
       </div>
 
       <!-- Navigation buttons -->
@@ -1122,41 +1161,67 @@ onUnmounted(() => {
           />
         </div>
 
-        <!-- Thumbnail strip (shown when there are multiple images) -->
-        <div v-if="allImages.length > 1" class="w-full mt-3 px-2 shrink-0" @click.stop>
+        <!-- Thumbnail strip toggle handle (always visible when there are multiple images) -->
+        <div v-if="allImages.length > 1" class="w-full shrink-0" @click.stop>
+          <!-- Collapsed state: show expand hint -->
           <div
-            ref="thumbnailStripRef"
-            class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide scroll-smooth"
-            @wheel="handleThumbnailWheel"
+            v-if="!showThumbnailStrip"
+            class="relative w-full py-3 flex items-center justify-center"
           >
-            <button
-              v-for="(image, index) in allImages"
-              :key="index"
-              class="relative shrink-0 w-16 h-16 rounded overflow-hidden border-2 transition-all duration-200 hover:scale-105 active:scale-95"
-              :class="
-                index === currentImageIndex
-                  ? 'border-accent shadow-lg shadow-accent/30'
-                  : 'border-white/20 hover:border-white/40'
-              "
-              @click="
-                currentImageIndex = index;
-                currentImageLoading = true;
-                resetView();
-              "
-            >
-              <img
-                :src="image"
-                :alt="`${t('common.text.image')} ${index + 1}`"
-                class="w-full h-full object-cover"
-                loading="lazy"
-              />
-              <!-- Active indicator -->
-              <div
-                v-if="index === currentImageIndex"
-                class="absolute inset-0 bg-accent/20 pointer-events-none"
-              ></div>
-            </button>
+            <div
+              class="h-1 w-12 bg-white/30 rounded-full cursor-pointer hover:bg-white/50 hover:w-16 transition-all duration-300"
+              @click="showThumbnailStrip = true"
+            ></div>
           </div>
+
+          <!-- Expanded state: show thumbnails with collapse handle -->
+          <template v-else>
+            <!-- Collapse handle above thumbnails -->
+            <div class="relative w-full py-2 flex items-center justify-center">
+              <div
+                class="h-1 w-16 bg-white/20 rounded-full cursor-pointer hover:bg-white/40 hover:w-20 transition-all duration-300"
+                @click="showThumbnailStrip = false"
+              ></div>
+            </div>
+
+            <!-- Thumbnail strip -->
+            <div class="w-full px-2" @click.stop>
+              <div
+                ref="thumbnailStripRef"
+                class="flex gap-2 overflow-x-auto pb-2 scrollbar-hide scroll-smooth"
+                :class="shouldCenterThumbnails ? 'justify-center' : 'justify-start'"
+                @wheel="handleThumbnailWheel"
+              >
+                <button
+                  v-for="(image, index) in allImages"
+                  :key="index"
+                  class="relative shrink-0 w-16 h-16 rounded overflow-hidden border-2 transition-all duration-200"
+                  :class="
+                    index === currentImageIndex
+                      ? 'border-accent shadow-lg shadow-accent/30'
+                      : 'border-white/30 hover:border-white/60'
+                  "
+                  @click="
+                    currentImageIndex = index;
+                    currentImageLoading = true;
+                    resetView();
+                  "
+                >
+                  <img
+                    :src="image"
+                    :alt="`${t('common.text.image')} ${index + 1}`"
+                    class="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                  <!-- Active indicator -->
+                  <div
+                    v-if="index === currentImageIndex"
+                    class="absolute inset-0 bg-accent/20 pointer-events-none"
+                  ></div>
+                </button>
+              </div>
+            </div>
+          </template>
         </div>
       </div>
 
@@ -1177,7 +1242,7 @@ onUnmounted(() => {
               {{ t('article.action.viewOriginal') }}
             </a>
             <button
-              class="px-3 py-1.5 bg-black/50 hover:bg-black/70 text-white rounded-md text-sm whitespace-nowrap transition-colors duration-200"
+              class="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-md text-sm whitespace-nowrap transition-all duration-200"
               :title="t('article.action.viewArticle')"
               @click="openArticleDetail"
             >

@@ -253,10 +253,12 @@ const zh: TranslationMessages = {
     text: {
       andNMore: '再增加 {count} 个',
       forceTranslate: '强制翻译',
+      hide: '隐藏',
       image: '图片',
       or: '或',
       orTry: '或者试试',
       progress: '进度：',
+      showThumbnails: '显示缩略图',
     },
     warning: {
       isInDevelopment: '该功能涉及到第三方工具，可能不稳定且存在问题。',

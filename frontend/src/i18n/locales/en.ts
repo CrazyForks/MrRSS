@@ -257,10 +257,12 @@ const en: TranslationMessages = {
     text: {
       andNMore: '+{count} more',
       forceTranslate: 'Force Translate',
+      hide: 'Hide',
       image: 'Image',
       or: 'or',
       orTry: 'Or try',
       progress: 'Progress: ',
+      showThumbnails: 'Show Thumbnails',
     },
     warning: {
       isInDevelopment:

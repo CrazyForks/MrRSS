@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fixed the issue where default title was not set fetched when not provided. (#566)
 - Fixed multiple minor styling issues. (#569, #584)
+- Fixed the style of image gallery view. (#571, #581)
 
 ## [1.3.17] - 2026-01-24
 
