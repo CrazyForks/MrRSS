@@ -41,6 +41,7 @@ import (
 	settings "MrRSS/internal/handlers/settings"
 	stathandlers "MrRSS/internal/handlers/statistics"
 	summary "MrRSS/internal/handlers/summary"
+	taghandlers "MrRSS/internal/handlers/tags"
 	translationhandlers "MrRSS/internal/handlers/translation"
 	update "MrRSS/internal/handlers/update"
 	window "MrRSS/internal/handlers/window"
@@ -194,6 +195,11 @@ func main() {
 	apiMux.HandleFunc("/api/feeds/discover-all/clear", func(w http.ResponseWriter, r *http.Request) { discovery.HandleClearBatchDiscovery(h, w, r) })
 	apiMux.HandleFunc("/api/feeds/reorder", func(w http.ResponseWriter, r *http.Request) { feedhandlers.HandleReorderFeed(h, w, r) })
 	apiMux.HandleFunc("/api/feeds/test-imap", func(w http.ResponseWriter, r *http.Request) { feedhandlers.HandleTestIMAPConnection(h, w, r) })
+	// Tag routes
+	apiMux.HandleFunc("/api/tags", func(w http.ResponseWriter, r *http.Request) { taghandlers.HandleTags(h, w, r) })
+	apiMux.HandleFunc("/api/tags/update", func(w http.ResponseWriter, r *http.Request) { taghandlers.HandleTagUpdate(h, w, r) })
+	apiMux.HandleFunc("/api/tags/delete", func(w http.ResponseWriter, r *http.Request) { taghandlers.HandleTagDelete(h, w, r) })
+	apiMux.HandleFunc("/api/tags/reorder", func(w http.ResponseWriter, r *http.Request) { taghandlers.HandleTagReorder(h, w, r) })
 	// Saved filters routes
 	apiMux.HandleFunc("/api/saved-filters", func(w http.ResponseWriter, r *http.Request) {
 		filter_category.HandleSavedFilters(h, w, r)

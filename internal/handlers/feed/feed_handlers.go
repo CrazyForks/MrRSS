@@ -28,8 +28,11 @@ func HandleFeeds(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Clear sensitive password fields before sending to frontend
+	// Populate tags for each feed
 	for i := range feeds {
+		tags, _ := h.DB.GetFeedTags(feeds[i].ID)
+		feeds[i].Tags = tags
+		// Clear sensitive password fields before sending to frontend
 		feeds[i].EmailPassword = ""
 	}
 
@@ -80,6 +83,8 @@ func HandleAddFeed(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 		EmailUsername   string `json:"email_username"`
 		EmailPassword   string `json:"email_password"`
 		EmailFolder     string `json:"email_folder"`
+		// Tags
+		Tags []int64 `json:"tags"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -138,6 +143,14 @@ func HandleAddFeed(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 	if err := h.DB.UpdateFeed(feed.ID, feed.Title, feed.URL, feed.Category, feed.ScriptPath, req.HideFromTimeline, req.ProxyURL, req.ProxyEnabled, req.RefreshInterval, req.IsImageMode, feed.Type, feed.XPathItem, feed.XPathItemTitle, feed.XPathItemContent, feed.XPathItemUri, feed.XPathItemAuthor, feed.XPathItemTimestamp, feed.XPathItemTimeFormat, feed.XPathItemThumbnail, feed.XPathItemCategories, feed.XPathItemUid, req.ArticleViewMode, req.AutoExpandContent, feed.EmailAddress, feed.EmailIMAPServer, feed.EmailUsername, feed.EmailPassword, feed.EmailFolder, feed.EmailIMAPPort); err != nil {
 		http.Error(w, "feed created but failed to update settings: "+err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	// Set tags for the feed
+	if len(req.Tags) > 0 {
+		if err := h.DB.SetFeedTags(feedID, req.Tags); err != nil {
+			// Log error but don't fail - feed was created successfully
+			// Tags can be set later via edit
+		}
 	}
 
 	// Immediately fetch articles for the newly added feed in background
@@ -218,6 +231,8 @@ func HandleUpdateFeed(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 		EmailUsername   string `json:"email_username"`
 		EmailPassword   string `json:"email_password"`
 		EmailFolder     string `json:"email_folder"`
+		// Tags
+		Tags []int64 `json:"tags"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -330,6 +345,15 @@ func HandleUpdateFeed(h *core.Handler, w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// Update tags for the feed
+	if req.Tags != nil {
+		if err := h.DB.SetFeedTags(req.ID, req.Tags); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
 	w.WriteHeader(http.StatusOK)
 }
 

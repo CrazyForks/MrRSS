@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed, type Ref } from 'vue';
-import type { Article, Feed, UnreadCounts, RefreshProgress } from '@/types/models';
+import type { Article, Feed, Tag, UnreadCounts, RefreshProgress } from '@/types/models';
 import type { FilterCondition } from '@/types/filter';
 import { useSettings } from '@/composables/core/useSettings';
 
@@ -69,6 +69,13 @@ export const useAppStore = defineStore('app', () => {
   const feedMap = computed(() => {
     const map = new Map<number, Feed>();
     feeds.value.forEach((feed) => map.set(feed.id, feed));
+    return map;
+  });
+  const tags = ref<Tag[]>([]);
+  // Tag map for O(1) lookups - computed from tags array
+  const tagMap = computed(() => {
+    const map = new Map<number, Tag>();
+    tags.value.forEach((tag) => map.set(tag.id, tag));
     return map;
   });
   const unreadCounts = ref<UnreadCounts>({
@@ -229,9 +236,22 @@ export const useAppStore = defineStore('app', () => {
       // Fetch unread counts and filter counts after fetching feeds
       await fetchUnreadCounts();
       await fetchFilterCounts();
+      // Fetch tags after fetching feeds
+      await fetchTags();
     } catch (e) {
       console.error('[App Store] Fetch feeds error:', e);
       feeds.value = [];
+    }
+  }
+
+  async function fetchTags(): Promise<void> {
+    try {
+      const res = await fetch('/api/tags');
+      const data = await res.json();
+      tags.value = data || [];
+    } catch (e) {
+      console.error('[App Store] Fetch tags error:', e);
+      tags.value = [];
     }
   }
 
@@ -387,7 +407,7 @@ export const useAppStore = defineStore('app', () => {
       }
 
       // Also trigger FreshRSS sync if enabled
-      if (settingsRef.value.freshrss_enabled === 'true') {
+      if (settingsRef.value.freshrss_enabled === true) {
         try {
           await fetch('/api/freshrss/sync', { method: 'POST' });
         } catch (e) {
@@ -717,6 +737,8 @@ export const useAppStore = defineStore('app', () => {
     articles,
     feeds,
     feedMap,
+    tags,
+    tagMap,
     unreadCounts,
     filterCounts,
     currentFilter,
@@ -744,6 +766,7 @@ export const useAppStore = defineStore('app', () => {
     fetchArticles,
     loadMore,
     fetchFeeds,
+    fetchTags,
     fetchUnreadCounts,
     fetchFilterCounts,
     markAllAsRead,

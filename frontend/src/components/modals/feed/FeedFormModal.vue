@@ -5,12 +5,13 @@ import { PhCaretDown, PhCaretRight } from '@phosphor-icons/vue';
 import type { Feed } from '@/types/models';
 import { useModalClose } from '@/composables/ui/useModalClose';
 import { useFeedForm } from '@/composables/feed/useFeedForm';
-import { useAppStore } from '@/stores/app';
+import { useSettings } from '@/composables/core/useSettings';
 import UrlInput from './parts/UrlInput.vue';
 import ScriptSelector from './parts/ScriptSelector.vue';
 import XPathConfig from './parts/XPathConfig.vue';
 import EmailConfig from './parts/EmailConfig.vue';
 import CategorySelector from './parts/CategorySelector.vue';
+import TagSelector from './parts/TagSelector.vue';
 import AdvancedSettings from './parts/AdvancedSettings.vue';
 
 interface Props {
@@ -21,11 +22,11 @@ interface Props {
 const props = defineProps<Props>();
 
 const { t } = useI18n();
-const store = useAppStore();
+const { settings } = useSettings();
 
 // Check if RSSHub is enabled
 const isRSSHubEnabled = computed(() => {
-  return store.settings?.rsshub_enabled === 'true';
+  return settings.value?.rsshub_enabled === true;
 });
 
 // Use the shared feed form composable
@@ -82,6 +83,7 @@ const {
   emailUsername,
   emailPassword,
   emailFolder,
+  selectedTags,
 } = useFeedForm(props.feed);
 
 const emit = defineEmits<{
@@ -108,12 +110,13 @@ async function submit() {
   isSubmitting.value = true;
 
   try {
-    const body: Record<string, string | boolean | number> = {
+    const body: Record<string, string | boolean | number | number[]> = {
       category: category.value,
       title: title.value,
       hide_from_timeline: hideFromTimeline.value,
       is_image_mode: isImageMode.value,
       refresh_interval: getRefreshInterval(),
+      tags: selectedTags.value,
     };
 
     // Handle proxy settings
@@ -584,6 +587,8 @@ async function submit() {
           @update:show-custom-category="showCustomCategory = $event"
           @handle-category-change="handleCategoryChange"
         />
+
+        <TagSelector :selected-tags="selectedTags" @update:selected-tags="selectedTags = $event" />
 
         <!-- Advanced Settings Toggle -->
         <div class="mb-3 sm:mb-4">

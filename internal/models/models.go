@@ -49,6 +49,8 @@ type Feed struct {
 	LatestArticleTime *time.Time `json:"latest_article_time,omitempty"` // Latest article publish time
 	ArticlesPerMonth  float64    `json:"articles_per_month,omitempty"`  // Average articles per month (last 90 days / 3)
 	LastUpdateStatus  string     `json:"last_update_status,omitempty"`  // Last update status ("success" or "failed")
+	// Tags (populated by API handlers)
+	Tags []Tag `json:"tags,omitempty"` // Tags assigned to this feed
 }
 
 type Article struct {
@@ -81,4 +83,12 @@ type SavedFilter struct {
 	Position   int       `json:"position"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+// Tag represents a user-defined tag for organizing feeds
+type Tag struct {
+	ID       int64  `json:"id"`
+	Name     string `json:"name"`
+	Color    string `json:"color"`
+	Position int    `json:"position"`
 }
