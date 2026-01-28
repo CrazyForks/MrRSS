@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed the issue where summary can not be closed. (#591)
 - Fixed the issue related to FreshRSS synchronization. (#598, #600)
 - Fixed the issue related to HTML character encoding in image gallery view. (#596)
+- Fixed the issue where filter by category is slow due to missing index. (#570)
 
 ## [1.3.17] - 2026-01-24
 

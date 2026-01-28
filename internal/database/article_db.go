@@ -78,8 +78,52 @@ func (db *DB) SaveArticles(ctx context.Context, articles []*models.Article) erro
 }
 
 // GetArticles retrieves articles with filtering, pagination, and sorting.
+// Optimized to filter feeds first for category queries, reducing JOIN overhead.
 func (db *DB) GetArticles(filter string, feedID int64, category string, showHidden bool, limit, offset int) ([]models.Article, error) {
 	db.WaitForReady()
+
+	// Optimization: For category queries, first get the feed IDs, then query articles
+	// This avoids JOINing all articles and then filtering by category
+	var feedIDFilter []int64
+	var useFeedIDFilter bool
+
+	if category != "" {
+		var categoryQuery string
+		var categoryArgs []interface{}
+
+		if category == "\x00" {
+			// Special value "\x00" means explicit uncategorized filtering
+			categoryQuery = "SELECT id FROM feeds WHERE category IS NULL OR category = ''"
+		} else {
+			// Simple prefix match for category hierarchy
+			categoryQuery = "SELECT id FROM feeds WHERE category = ? OR category LIKE ?"
+			categoryArgs = []interface{}{category, category + "/%"}
+		}
+
+		rows, err := db.Query(categoryQuery, categoryArgs...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to query feeds by category: %w", err)
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var id int64
+			if err := rows.Scan(&id); err != nil {
+				log.Println("Error scanning feed ID:", err)
+				continue
+			}
+			feedIDFilter = append(feedIDFilter, id)
+		}
+
+		// If no feeds found in this category, return empty result early
+		if len(feedIDFilter) == 0 {
+			return []models.Article{}, nil
+		}
+
+		useFeedIDFilter = true
+	}
+
+	// Build the main query
 	baseQuery := `
 		SELECT a.id, a.feed_id, a.title, a.url, a.image_url, a.audio_url, a.video_url, a.published_at, a.is_read, a.is_favorite, a.is_hidden, a.is_read_later, a.translated_title, a.summary, a.freshrss_item_id, f.title, a.author
 		FROM articles a
@@ -111,21 +155,19 @@ func (db *DB) GetArticles(filter string, feedID int64, category string, showHidd
 		}
 	}
 
-	if feedID > 0 {
+	// Apply feed ID filter
+	if useFeedIDFilter {
+		// Use optimized IN clause with pre-filtered feed IDs
+		placeholders := make([]string, len(feedIDFilter))
+		for i, id := range feedIDFilter {
+			placeholders[i] = "?"
+			args = append(args, id)
+		}
+		whereClauses = append(whereClauses, "a.feed_id IN ("+strings.Join(placeholders, ",")+")")
+	} else if feedID > 0 {
 		whereClauses = append(whereClauses, "a.feed_id = ?")
 		args = append(args, feedID)
 	}
-
-	if category == "\x00" {
-		// Special value "\x00" means explicit uncategorized filtering
-		whereClauses = append(whereClauses, "(f.category IS NULL OR f.category = '')")
-	} else if category != "" {
-		// Simple prefix match for category hierarchy
-		whereClauses = append(whereClauses, "(f.category = ? OR f.category LIKE ?)")
-		args = append(args, category, category+"/%")
-	}
-	// Note: When category is empty string, it means no category filter was provided,
-	// so we should not filter by category at all (show all articles from all categories).
 
 	query := baseQuery
 	if len(whereClauses) > 0 {
