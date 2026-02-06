@@ -18,6 +18,17 @@ const emit = defineEmits<{
 }>();
 
 /**
+ * Handle favorite button click
+ * Emits the favorite event and closes any open context menu
+ */
+function handleFavoriteClick(event: Event): void {
+  emit('favorite', event);
+  // Close any open context menu by dispatching a click event to document
+  // The ContextMenu component's handleClickOutside will catch this
+  document.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+}
+
+/**
  * Format date for display
  * @param dateString - ISO date string
  * @returns Formatted date string
@@ -77,7 +88,7 @@ function formatDate(dateString: string): string {
       >
         <button
           class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/50 rounded-full p-1.5 hover:bg-black/70"
-          @click="emit('favorite', $event)"
+          @click="handleFavoriteClick($event)"
         >
           <PhHeart
             :size="20"

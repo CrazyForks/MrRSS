@@ -393,6 +393,17 @@ watch(
   { flush: 'post' }
 );
 
+// Watch for showOnlyUnread changes and refetch
+watch(
+  () => galleryData.showOnlyUnread.value,
+  async () => {
+    await galleryData.refresh();
+    // Recalculate columns after fetching new articles
+    await nextTick();
+    masonryLayout.calculateColumns();
+  }
+);
+
 onMounted(() => {
   galleryData.fetchImages();
   if (masonryLayout.containerRef.value) {
@@ -424,8 +435,10 @@ onUnmounted(() => {
     <!-- Header -->
     <ImageGalleryHeader
       :show-text-overlay="showTextOverlay"
+      :show-only-unread="galleryData.showOnlyUnread.value"
       @toggle-sidebar="emit('toggleSidebar')"
       @toggle-text-overlay="showTextOverlay = !showTextOverlay"
+      @toggle-show-only-unread="galleryData.toggleShowOnlyUnread()"
     />
 
     <!-- Grid View -->

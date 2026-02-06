@@ -76,12 +76,14 @@ export interface ImageGalleryDataReturn {
   page: import('vue').Ref<number>;
   hasMore: import('vue').Ref<boolean>;
   imageCountCache: import('vue').Ref<Map<number, number>>;
+  showOnlyUnread: import('vue').Ref<boolean>;
 
   // Methods
   fetchImages: (loadMore?: boolean) => Promise<void>;
   fetchImageCount: (articleId: number) => Promise<void>;
   getImageCount: (article: Article) => number;
   refresh: () => Promise<void>;
+  toggleShowOnlyUnread: () => void;
 }
 
 /**

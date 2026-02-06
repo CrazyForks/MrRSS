@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Supported multiple AI profiles and configuration management. (#439)
 - Added Notion integration for exporting articles directly to Notion pages. (#625)
 - Supported hiding and showing the activity bar. (#588)
+- Added show only unread functionality for image gallery. (#559)
 
 ### Changed
 
@@ -25,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Ensured summary generation waits for full content when applicable. (#629)
 - Prevented overflow from long content. (#574)
+- Fixed styling issues in the image gallery view. (#573)
 
 ### Removed
 

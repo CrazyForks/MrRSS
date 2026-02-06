@@ -1,4 +1,4 @@
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import type { Article } from '@/types/models';
 import type { ImageGalleryDataReturn } from '../types';
 
@@ -15,6 +15,16 @@ export function useImageGalleryData(): ImageGalleryDataReturn {
   const hasMore = ref(true);
   const imageCountCache = ref<Map<number, number>>(new Map());
 
+  // Load showOnlyUnread preference from localStorage
+  const showOnlyUnread = ref<boolean>(
+    localStorage.getItem('imageGalleryShowOnlyUnread') === 'true'
+  );
+
+  // Watch for changes and save to localStorage
+  watch(showOnlyUnread, (newValue) => {
+    localStorage.setItem('imageGalleryShowOnlyUnread', String(newValue));
+  });
+
   /**
    * Fetch image gallery articles
    * @param loadMore - Whether to append to existing articles or replace them
@@ -26,6 +36,11 @@ export function useImageGalleryData(): ImageGalleryDataReturn {
     try {
       // Build URL with query parameters
       let url = `/api/articles/images?page=${page.value}&limit=${ITEMS_PER_PAGE}`;
+
+      // Add only_unread filter if enabled
+      if (showOnlyUnread.value) {
+        url += '&only_unread=true';
+      }
 
       // Add feed_id filter if viewing a specific feed
       const feedId = (window as any).store?.currentFeedId;
@@ -110,15 +125,24 @@ export function useImageGalleryData(): ImageGalleryDataReturn {
     await fetchImages();
   }
 
+  /**
+   * Toggle the show only unread filter
+   */
+  function toggleShowOnlyUnread(): void {
+    showOnlyUnread.value = !showOnlyUnread.value;
+  }
+
   return {
     articles,
     isLoading,
     page,
     hasMore,
     imageCountCache,
+    showOnlyUnread,
     fetchImages,
     fetchImageCount,
     getImageCount,
     refresh,
+    toggleShowOnlyUnread,
   };
 }

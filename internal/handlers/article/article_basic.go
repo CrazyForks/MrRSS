@@ -142,10 +142,11 @@ func HandleToggleReadLater(h *core.Handler, w http.ResponseWriter, r *http.Reque
 // @Tags         articles
 // @Accept       json
 // @Produce      json
-// @Param        feed_id  query     int64   false  "Filter by feed ID"
-// @Param        category query     string  false  "Filter by category name"
-// @Param        page     query     int     false  "Page number (default: 1)"  minimum(1)
-// @Param        limit    query     int     false  "Items per page (default: 50)"  minimum(1)
+// @Param        feed_id     query     int64   false  "Filter by feed ID"
+// @Param        category    query     string  false  "Filter by category name"
+// @Param        only_unread query     bool    false  "Filter for only unread articles"
+// @Param        page        query     int     false  "Page number (default: 1)"  minimum(1)
+// @Param        limit       query     int     false  "Items per page (default: 50)"  minimum(1)
 // @Success      200  {array}   models.Article  "List of image gallery articles"
 // @Failure      500  {object}  map[string]string  "Internal server error"
 // @Router       /articles/image-gallery [get]
@@ -153,6 +154,7 @@ func HandleImageGalleryArticles(h *core.Handler, w http.ResponseWriter, r *http.
 	pageStr := r.URL.Query().Get("page")
 	limitStr := r.URL.Query().Get("limit")
 	feedIDStr := r.URL.Query().Get("feed_id")
+	onlyUnreadStr := r.URL.Query().Get("only_unread")
 
 	// Check if category parameter exists (even if empty string)
 	// We need to distinguish between "no category parameter" and "category='' for uncategorized"
@@ -187,7 +189,10 @@ func HandleImageGalleryArticles(h *core.Handler, w http.ResponseWriter, r *http.
 	showHiddenStr, _ := h.DB.GetSetting("show_hidden_articles")
 	showHidden := showHiddenStr == "true"
 
-	articles, err := h.DB.GetImageGalleryArticles(feedID, category, showHidden, limit, offset)
+	// Parse only_unread parameter
+	onlyUnread := onlyUnreadStr == "true"
+
+	articles, err := h.DB.GetImageGalleryArticles(feedID, category, showHidden, onlyUnread, limit, offset)
 	if err != nil {
 		response.Error(w, err, http.StatusInternalServerError)
 		return

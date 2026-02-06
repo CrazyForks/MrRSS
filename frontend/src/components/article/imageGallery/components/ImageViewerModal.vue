@@ -110,6 +110,8 @@ function handleThumbnailSelect(index: number): void {
  */
 function handleViewerAction(action: string): void {
   emit('action', action, props.article);
+  // Close any open context menu when clicking action buttons
+  document.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 }
 
 /**

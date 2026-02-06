@@ -13,7 +13,8 @@ import (
 // If feedID is provided, it gets articles only from that feed (assuming it's an image mode feed).
 // If category is provided, it gets articles from all image mode feeds in that category.
 // Otherwise, it gets articles from all image mode feeds.
-func (db *DB) GetImageGalleryArticles(feedID int64, category string, showHidden bool, limit, offset int) ([]models.Article, error) {
+// If onlyUnread is true, only returns unread articles.
+func (db *DB) GetImageGalleryArticles(feedID int64, category string, showHidden bool, onlyUnread bool, limit, offset int) ([]models.Article, error) {
 	db.WaitForReady()
 	baseQuery := `
 		SELECT a.id, a.feed_id, a.title, a.url, a.image_url, a.audio_url, a.video_url, a.published_at, a.is_read, a.is_favorite, a.is_hidden, a.is_read_later, a.translated_title, a.summary, f.title, a.author
@@ -30,6 +31,11 @@ func (db *DB) GetImageGalleryArticles(feedID int64, category string, showHidden 
 
 	// Only get articles with image_url
 	baseQuery += " AND a.image_url IS NOT NULL AND a.image_url != ''"
+
+	// Filter for only unread articles if requested
+	if onlyUnread {
+		baseQuery += " AND a.is_read = 0"
+	}
 
 	if feedID > 0 {
 		baseQuery += " AND a.feed_id = ?"
