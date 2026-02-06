@@ -757,40 +757,28 @@ func rewriteHTMLContent(bodyBytes []byte, baseURL string) []byte {
 	}
 
 	// Rewrite script src attributes
-	log.Printf("[HTML Rewrite] Rewriting script src attributes...")
+	// log.Printf("[HTML Rewrite] Rewriting script src attributes...")
 	content = rewriteAttribute(content, "script", "src", baseURL)
 
 	// Rewrite link href attributes (for stylesheets)
-	log.Printf("[HTML Rewrite] Rewriting link href attributes...")
+	// log.Printf("[HTML Rewrite] Rewriting link href attributes...")
 	content = rewriteLinkHref(content, baseURL)
 
 	// DEBUG: Log a sample of the rewritten HTML to verify it's working
-	if strings.Contains(content, "/static/") || strings.Contains(content, "/cdn-cgi/") {
-		log.Printf("[HTML Rewrite] DEBUG: Found potential unrewritten URLs in HTML!")
-		// Find and log the first occurrence
-		if idx := strings.Index(content, "/static/"); idx != -1 {
-			start := idx - 100
-			if start < 0 {
-				start = 0
-			}
-			end := idx + 200
-			if end > len(content) {
-				end = len(content)
-			}
-			log.Printf("[HTML Rewrite] Context around /static/: %s", content[start:end])
-		}
-		if idx := strings.Index(content, "/cdn-cgi/"); idx != -1 {
-			start := idx - 100
-			if start < 0 {
-				start = 0
-			}
-			end := idx + 200
-			if end > len(content) {
-				end = len(content)
-			}
-			log.Printf("[HTML Rewrite] Context around /cdn-cgi/: %s", content[start:end])
-		}
-	}
+	// if strings.Contains(content, "/static/") || strings.Contains(content, "/cdn-cgi/") {
+	// 	log.Printf("[HTML Rewrite] DEBUG: Found potential unrewritten URLs in HTML!")
+	// 	// Find and log the first occurrence
+	// 	if idx := strings.Index(content, "/static/"); idx != -1 {
+	// 		start := max(idx - 100, 0)
+	// 		end := min(idx + 200, len(content))
+	// 		log.Printf("[HTML Rewrite] Context around /static/: %s", content[start:end])
+	// 	}
+	// 	if idx := strings.Index(content, "/cdn-cgi/"); idx != -1 {
+	// 		start := max(idx - 100, 0)
+	// 		end := min(idx + 200, len(content))
+	// 		log.Printf("[HTML Rewrite] Context around /cdn-cgi/: %s", content[start:end])
+	// 	}
+	// }
 
 	// First, convert lazy-loaded images to normal images
 	// This ensures images load immediately without waiting for lazy loading scripts
@@ -1080,9 +1068,9 @@ func rewriteAttribute(content, tag, attr, baseURL string) string {
 		}
 
 		rewriteCount++
-		if tag == "script" || tag == "link" {
-			log.Printf("[%s Rewrite] Rewriting %s %d: %s", strings.ToUpper(tag), attr, rewriteCount, urlValue)
-		}
+		// if tag == "script" || tag == "link" {
+		// 	log.Printf("[%s Rewrite] Rewriting %s %d: %s", strings.ToUpper(tag), attr, rewriteCount, urlValue)
+		// }
 
 		// Resolve relative URLs
 		resolvedURL := resolveURL(urlValue, baseURL)
@@ -1108,9 +1096,9 @@ func rewriteAttribute(content, tag, attr, baseURL string) string {
 		}
 	})
 
-	if matchCount > 0 && (tag == "script" || tag == "link") {
-		log.Printf("[%s Rewrite] Found %d %s tags, rewrote %d %s attributes", strings.ToUpper(tag), matchCount, tag, rewriteCount, attr)
-	}
+	// if matchCount > 0 && (tag == "script" || tag == "link") {
+	// 	log.Printf("[%s Rewrite] Found %d %s tags, rewrote %d %s attributes", strings.ToUpper(tag), matchCount, tag, rewriteCount, attr)
+	// }
 
 	return result
 }
@@ -1165,7 +1153,7 @@ func rewriteLinkHref(content, baseURL string) string {
 		}
 
 		rewriteCount++
-		log.Printf("[Link Rewrite] Rewriting link %d: %s", rewriteCount, urlValue)
+		// log.Printf("[Link Rewrite] Rewriting link %d: %s", rewriteCount, urlValue)
 
 		// Resolve relative URLs
 		resolvedURL := resolveURL(urlValue, baseURL)
@@ -1191,9 +1179,9 @@ func rewriteLinkHref(content, baseURL string) string {
 		}
 	})
 
-	if matchCount > 0 {
-		log.Printf("[Link Rewrite] Found %d link tags, rewrote %d", matchCount, rewriteCount)
-	}
+	// if matchCount > 0 {
+	// 	log.Printf("[Link Rewrite] Found %d link tags, rewrote %d", matchCount, rewriteCount)
+	// }
 
 	return result
 }
@@ -1285,7 +1273,7 @@ func rewriteAnchorHref(content, baseURL string) string {
 
 		// Let's use a special marker that our injected script will recognize
 		proxiedURL := fmt.Sprintf("BROWSER-OPEN:%s", resolvedURL)
-		log.Printf("[Link Proxy] Proxied link %d: %s -> %s (marker: %s)", proxiedCount, urlValue, resolvedURL, proxiedURL)
+		// log.Printf("[Link Proxy] Proxied link %d: %s -> %s (marker: %s)", proxiedCount, urlValue, resolvedURL, proxiedURL)
 
 		// Replace the href attribute value by finding and replacing the exact value
 		// We need to handle different quote styles
@@ -1334,9 +1322,9 @@ func rewriteAnchorHref(content, baseURL string) string {
 		return newMatch
 	})
 
-	if matchCount > 0 {
-		log.Printf("[Link Proxy] Found %d anchor tags, proxied %d links", matchCount, proxiedCount)
-	}
+	// if matchCount > 0 {
+	// 	log.Printf("[Link Proxy] Found %d anchor tags, proxied %d links", matchCount, proxiedCount)
+	// }
 
 	return result
 }

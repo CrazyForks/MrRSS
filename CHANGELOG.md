@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Ensured summary generation waits for full content when applicable. (#629)
+- Prevented overflow from long content. (#574)
 
 ### Removed
 
