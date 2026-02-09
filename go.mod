@@ -5,7 +5,7 @@ go 1.25.0
 toolchain go1.25.6
 
 require (
-	codeberg.org/readeck/go-readability/v2 v2.1.0
+	codeberg.org/readeck/go-readability/v2 v2.1.1
 	github.com/JohannesKaufmann/html-to-markdown v1.6.0
 	github.com/PuerkitoBio/goquery v1.11.0
 	github.com/abadojack/whatlanggo v1.0.1
