@@ -2,16 +2,13 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { PhArrowLineUp } from '@phosphor-icons/vue';
-
-interface TocItem {
-  id: string;
-  text: string;
-  level: 1 | 2 | 3;
-  offsetTop: number;
-  markerWidth: number;
-  parentIndex: number | null;
-  isFallback: boolean;
-}
+import {
+  buildTocItems,
+  calcTocProgress,
+  shouldShowTocText,
+  type TocItem,
+  type HeadingSnapshot,
+} from '@/composables/article/floatingToc';
 
 interface Props {
   articleId: number;
@@ -45,57 +42,8 @@ const containerStyle = computed(() => ({
   bottom: `${bottomOffset.value}px`,
 }));
 
-function getMarkerWidth(level: 1 | 2 | 3): number {
-  if (level === 1) return 34;
-  if (level === 2) return 24;
-  return 14;
-}
-
-function sanitizeHeadingText(text: string): string {
-  // Keep numbered prefixes like "1.2.", but remove markdown heading markers like "###".
-  return text
-    .replace(/^\s*#+\s*/, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function getHeadingDisplayText(heading: HTMLElement): string {
-  const translationEl = heading.nextElementSibling as HTMLElement | null;
-  const hasHeadingTranslation =
-    translationEl &&
-    translationEl.classList.contains('translation-text') &&
-    !translationEl.classList.contains('translation-inline') &&
-    !translationEl.classList.contains('translation-blockquote');
-
-  const translatedText = hasHeadingTranslation
-    ? sanitizeHeadingText(translationEl.textContent || '')
-    : '';
-  if (translatedText) return translatedText;
-
-  return sanitizeHeadingText(heading.textContent || '');
-}
-
 function shouldShowText(itemIndex: number): boolean {
-  const item = tocItems.value[itemIndex];
-  if (!item || item.isFallback) {
-    return false;
-  }
-
-  if (activeIndex.value < 0 || activeIndex.value >= tocItems.value.length) {
-    return false;
-  }
-  if (itemIndex === activeIndex.value) {
-    return true;
-  }
-
-  let parent = tocItems.value[activeIndex.value].parentIndex;
-  while (parent !== null) {
-    if (parent === itemIndex) {
-      return true;
-    }
-    parent = tocItems.value[parent].parentIndex;
-  }
-  return false;
+  return shouldShowTocText(itemIndex, activeIndex.value, tocItems.value);
 }
 
 function queueRebuild(): void {
@@ -115,13 +63,6 @@ function queueScrollSync(): void {
     scrollRaf = null;
     updateActiveSection();
   });
-}
-
-function getArticleProgress(container: HTMLElement): number {
-  const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
-  if (maxScrollTop <= 0) return 100;
-  const progress = Math.max(0, Math.min(1, container.scrollTop / maxScrollTop));
-  return Math.round(progress * 100);
 }
 
 function getMarkerFillPercent(index: number): number {
@@ -165,7 +106,12 @@ function buildToc(): void {
     tocItems.value = [];
     activeIndex.value = -1;
     sectionProgress.value = 0;
-    articleProgress.value = getArticleProgress(container);
+    articleProgress.value = calcTocProgress(
+      container.scrollTop,
+      container.scrollHeight,
+      container.clientHeight,
+      []
+    ).articleProgress;
     return;
   }
 
@@ -173,59 +119,35 @@ function buildToc(): void {
   const containerRect = container.getBoundingClientRect();
   const articleId = props.articleId || 0;
 
-  const items: TocItem[] = [];
-  let lastH1Index: number | null = null;
-  let lastH2Index: number | null = null;
-  headings.forEach((heading, index) => {
-    const level = Number(heading.tagName.slice(1)) as 1 | 2 | 3;
-    if (level < 1 || level > 3) return;
+  const snapshots: HeadingSnapshot[] = headings
+    .map((heading, index) => {
+      const level = Number(heading.tagName.slice(1));
+      if (level < 1 || level > 3) return null;
 
-    const text = getHeadingDisplayText(heading);
-    if (!text) return;
+      const translationEl = heading.nextElementSibling as HTMLElement | null;
+      const hasHeadingTranslation =
+        translationEl &&
+        translationEl.classList.contains('translation-text') &&
+        !translationEl.classList.contains('translation-inline') &&
+        !translationEl.classList.contains('translation-blockquote');
 
-    if (!heading.id) {
-      heading.id = `toc-heading-${articleId}-${index}`;
-    }
+      return {
+        level: level as 1 | 2 | 3,
+        offsetTop: heading.getBoundingClientRect().top - containerRect.top + container.scrollTop,
+        rawText: heading.textContent || '',
+        translatedText: hasHeadingTranslation ? translationEl.textContent || '' : '',
+        existingId: heading.id || undefined,
+        domIndex: index,
+      };
+    })
+    .filter((item): item is HeadingSnapshot => item !== null);
 
-    const offsetTop = heading.getBoundingClientRect().top - containerRect.top + container.scrollTop;
-
-    let parentIndex: number | null = null;
-    if (level === 2) {
-      parentIndex = lastH1Index;
-    } else if (level === 3) {
-      parentIndex = lastH2Index ?? lastH1Index;
-    }
-
-    items.push({
-      id: heading.id,
-      text,
-      level,
-      offsetTop: Math.max(0, Math.round(offsetTop)),
-      markerWidth: getMarkerWidth(level),
-      parentIndex,
-      isFallback: false,
-    });
-
-    const itemIndex = items.length - 1;
-    if (level === 1) {
-      lastH1Index = itemIndex;
-      lastH2Index = null;
-    } else if (level === 2) {
-      lastH2Index = itemIndex;
+  const { items, generatedIds } = buildTocItems(snapshots, articleId);
+  generatedIds.forEach(({ domIndex, id }) => {
+    if (headings[domIndex]) {
+      headings[domIndex].id = id;
     }
   });
-
-  if (items.length === 0) {
-    items.push({
-      id: `toc-fallback-${articleId}`,
-      text: '',
-      level: 1,
-      offsetTop: 0,
-      markerWidth: getMarkerWidth(1),
-      parentIndex: null,
-      isFallback: true,
-    });
-  }
 
   tocItems.value = items;
   updateActiveSection();
@@ -238,40 +160,28 @@ function updateActiveSection(): void {
   if (!container || items.length === 0) {
     activeIndex.value = -1;
     sectionProgress.value = 0;
-    articleProgress.value = container ? getArticleProgress(container) : 0;
+    articleProgress.value = container
+      ? calcTocProgress(container.scrollTop, container.scrollHeight, container.clientHeight, [])
+          .articleProgress
+      : 0;
     lastAutoScrolledIndex = -1;
     return;
   }
 
-  articleProgress.value = getArticleProgress(container);
+  const progress = calcTocProgress(
+    container.scrollTop,
+    container.scrollHeight,
+    container.clientHeight,
+    items
+  );
+  articleProgress.value = progress.articleProgress;
+  activeIndex.value = progress.activeIndex;
+  sectionProgress.value = progress.sectionProgress;
 
-  const pointer = container.scrollTop + 12;
-  let currentIndex = 0;
-
-  for (let i = 0; i < items.length; i += 1) {
-    if (items[i].offsetTop <= pointer) {
-      currentIndex = i;
-    } else {
-      break;
-    }
+  if (progress.activeIndex !== lastAutoScrolledIndex) {
+    autoScrollTocToActive(progress.activeIndex);
+    lastAutoScrolledIndex = progress.activeIndex;
   }
-
-  activeIndex.value = currentIndex;
-  if (currentIndex !== lastAutoScrolledIndex) {
-    autoScrollTocToActive(currentIndex);
-    lastAutoScrolledIndex = currentIndex;
-  }
-
-  const start = items[currentIndex].offsetTop;
-  const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
-  const end =
-    currentIndex < items.length - 1
-      ? items[currentIndex + 1].offsetTop
-      : Math.max(start + 1, maxScrollTop);
-
-  const segmentSize = Math.max(1, end - start);
-  const progress = Math.max(0, Math.min(1, (pointer - start) / segmentSize));
-  sectionProgress.value = Math.round(progress * 100);
 }
 
 function scrollToHeading(item: TocItem): void {
