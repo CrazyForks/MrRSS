@@ -45,6 +45,31 @@ describe('floatingToc helpers', () => {
     expect(fallback.items[0].id).toBe('toc-fallback-7');
   });
 
+  it('promotes heading levels when h1 or h1/h2 are missing', () => {
+    const noH1 = buildTocItems(
+      [
+        { level: 2, offsetTop: 10, rawText: 'H2 as top', domIndex: 0 },
+        { level: 3, offsetTop: 20, rawText: 'H3 child', domIndex: 1 },
+      ],
+      99
+    );
+    expect(noH1.items[0].level).toBe(1);
+    expect(noH1.items[1].level).toBe(2);
+    expect(noH1.items[1].parentIndex).toBe(0);
+
+    const onlyH3 = buildTocItems(
+      [
+        { level: 3, offsetTop: 10, rawText: 'H3 promoted', domIndex: 0 },
+        { level: 3, offsetTop: 20, rawText: 'H3 sibling', domIndex: 1 },
+      ],
+      100
+    );
+    expect(onlyH3.items[0].level).toBe(1);
+    expect(onlyH3.items[1].level).toBe(1);
+    expect(onlyH3.items[0].parentIndex).toBeNull();
+    expect(onlyH3.items[1].parentIndex).toBeNull();
+  });
+
   it('shows only current + ancestor path when not hovered', () => {
     const items: TocItem[] = [
       {

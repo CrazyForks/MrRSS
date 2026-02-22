@@ -49,6 +49,9 @@ export function buildTocItems(
 ): { items: TocItem[]; generatedIds: Array<{ domIndex: number; id: string }> } {
   const items: TocItem[] = [];
   const generatedIds: Array<{ domIndex: number; id: string }> = [];
+  const minLevel = headings.reduce<1 | 2 | 3>((min, heading) => {
+    return heading.level < min ? heading.level : min;
+  }, 3);
 
   let lastH1Index: number | null = null;
   let lastH2Index: number | null = null;
@@ -62,28 +65,30 @@ export function buildTocItems(
       generatedIds.push({ domIndex: heading.domIndex, id });
     }
 
+    const normalizedLevel = Math.max(1, heading.level - (minLevel - 1)) as 1 | 2 | 3;
+
     let parentIndex: number | null = null;
-    if (heading.level === 2) {
+    if (normalizedLevel === 2) {
       parentIndex = lastH1Index;
-    } else if (heading.level === 3) {
+    } else if (normalizedLevel === 3) {
       parentIndex = lastH2Index ?? lastH1Index;
     }
 
     items.push({
       id,
       text,
-      level: heading.level,
+      level: normalizedLevel,
       offsetTop: Math.max(0, Math.round(heading.offsetTop)),
-      markerWidth: getMarkerWidth(heading.level),
+      markerWidth: getMarkerWidth(normalizedLevel),
       parentIndex,
       isFallback: false,
     });
 
     const itemIndex = items.length - 1;
-    if (heading.level === 1) {
+    if (normalizedLevel === 1) {
       lastH1Index = itemIndex;
       lastH2Index = null;
-    } else if (heading.level === 2) {
+    } else if (normalizedLevel === 2) {
       lastH2Index = itemIndex;
     }
   }
