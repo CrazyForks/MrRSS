@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { PhArrowLineUp } from '@phosphor-icons/vue';
 import {
@@ -25,22 +25,14 @@ const activeIndex = ref(-1);
 const sectionProgress = ref(0);
 const articleProgress = ref(0);
 const isDesktop = ref(false);
-const topOffset = ref(76);
-const bottomOffset = ref(24);
 
 let mediaQuery: MediaQueryList | null = null;
 let containerObserver: MutationObserver | null = null;
 let pendingProseObserver: MutationObserver | null = null;
-let uiObserver: MutationObserver | null = null;
 let scrollContainerEl: HTMLElement | null = null;
 let rebuildRaf: number | null = null;
 let scrollRaf: number | null = null;
 let lastAutoScrolledIndex = -1;
-
-const containerStyle = computed(() => ({
-  top: `${topOffset.value}px`,
-  bottom: `${bottomOffset.value}px`,
-}));
 
 function shouldShowText(itemIndex: number): boolean {
   return shouldShowTocText(itemIndex, activeIndex.value, tocItems.value);
@@ -53,7 +45,6 @@ function queueRebuild(): void {
   rebuildRaf = requestAnimationFrame(() => {
     rebuildRaf = null;
     buildToc();
-    updateAvoidanceOffsets();
   });
 }
 
@@ -205,34 +196,6 @@ function scrollToTop(): void {
   });
 }
 
-function updateAvoidanceOffsets(): void {
-  if (!isDesktop.value) return;
-
-  let nextTop = 76;
-  let nextBottom = 24;
-
-  const findBar = document.querySelector('.find-in-page-bar') as HTMLElement | null;
-  if (findBar) {
-    const rect = findBar.getBoundingClientRect();
-    nextTop = Math.max(nextTop, Math.round(rect.bottom + 12));
-  }
-
-  const chatPanel = document.querySelector('.chat-panel') as HTMLElement | null;
-  if (chatPanel) {
-    const rect = chatPanel.getBoundingClientRect();
-    nextBottom = Math.max(nextBottom, Math.round(window.innerHeight - rect.top + 12));
-  } else {
-    const chatButton = document.querySelector('.js-article-chat-button') as HTMLElement | null;
-    if (chatButton) {
-      const rect = chatButton.getBoundingClientRect();
-      nextBottom = Math.max(nextBottom, Math.round(window.innerHeight - rect.top + 12));
-    }
-  }
-
-  topOffset.value = nextTop;
-  bottomOffset.value = nextBottom;
-}
-
 function handleMediaChange(event: MediaQueryListEvent): void {
   isDesktop.value = event.matches;
   queueRebuild();
@@ -294,13 +257,6 @@ onMounted(async () => {
   mediaQuery.addEventListener('change', handleMediaChange);
   window.addEventListener('resize', queueRebuild);
 
-  // Watch floating UI visibility changes (find bar/chat panel) for dynamic avoidance.
-  uiObserver = new MutationObserver(() => updateAvoidanceOffsets());
-  uiObserver.observe(document.body, {
-    childList: true,
-    subtree: true,
-  });
-
   await nextTick();
   bindScrollContainer(props.scrollContainer);
   connectContainerObserver();
@@ -336,7 +292,6 @@ onBeforeUnmount(() => {
   scrollContainerEl?.removeEventListener('scroll', queueScrollSync);
   containerObserver?.disconnect();
   pendingProseObserver?.disconnect();
-  uiObserver?.disconnect();
 
   if (rebuildRaf !== null) {
     cancelAnimationFrame(rebuildRaf);
@@ -350,8 +305,7 @@ onBeforeUnmount(() => {
 <template>
   <div
     v-if="enabled && isDesktop && tocItems.length > 0"
-    class="pointer-events-none fixed right-[8px] z-40 flex w-[max(15%,125px)] flex-col items-end justify-center [container-type:inline-size]"
-    :style="containerStyle"
+    class="pointer-events-none absolute right-[8px] top-[76px] bottom-6 z-40 flex w-[max(15%,125px)] flex-col items-end justify-center [container-type:inline-size]"
   >
     <div class="mb-2 w-full text-right text-[10px] font-medium text-text-secondary opacity-75">
       {{ articleProgress }}%
