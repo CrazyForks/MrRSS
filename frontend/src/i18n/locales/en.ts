@@ -120,8 +120,10 @@ const en: TranslationMessages = {
     },
     videoPlayer: {
       openInYouTube: 'Open in YouTube',
-      videoLoadError: 'Failed to load video. Please try opening it in YouTube.',
+      videoLoadError: 'Failed to load video. Please try opening it in the original platform.',
       youtubeVideo: 'YouTube Video',
+      videoPlayer: '{platform} Video',
+      openInPlatform: 'Open in {platform}',
     },
   },
   aiSearch: {

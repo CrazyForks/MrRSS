@@ -14,6 +14,7 @@ import { useImageViewer } from '../composables/useImageViewer';
 import ThumbnailStrip from './ThumbnailStrip.vue';
 import { getProxiedMediaUrl, isMediaCacheEnabled } from '@/utils/mediaProxy';
 import { isYouTubeArticle, extractYouTubeVideoId } from '@/utils/youtube';
+import { isBilibiliArticle } from '@/utils/bilibili';
 
 interface Props {
   article: Article | null;
@@ -41,6 +42,12 @@ const mediaCacheEnabled = ref(false);
 // Check if current article is a YouTube video
 const isYouTube = computed(() => (props.article ? isYouTubeArticle(props.article) : false));
 
+// Check if current article is a Bilibili video
+const isBilibili = computed(() => (props.article ? isBilibiliArticle(props.article) : false));
+
+// Check if current article is any video (YouTube or Bilibili)
+const isVideo = computed(() => isYouTube.value || isBilibili.value);
+
 // Get YouTube embed URL if applicable
 const youtubeEmbedUrl = computed(() => {
   if (isYouTube.value && props.article?.video_url) {
@@ -48,6 +55,14 @@ const youtubeEmbedUrl = computed(() => {
     if (videoId) {
       return `https://www.youtube.com/embed/${videoId}?autoplay=1`;
     }
+  }
+  return '';
+});
+
+// Get Bilibili video URL (already in embed format)
+const bilibiliVideoUrl = computed(() => {
+  if (isBilibili.value && props.article?.video_url) {
+    return props.article.video_url;
   }
   return '';
 });
@@ -210,7 +225,7 @@ window.addEventListener('image-wheel-navigate', ((e: CustomEvent) => {
       <!-- Left: Image counter -->
       <div class="absolute left-0 top-0 flex items-center gap-2">
         <div
-          v-if="!isYouTube && allImages.length > 1"
+          v-if="!isVideo && allImages.length > 1"
           class="px-2 py-1 rounded bg-black/50 text-white text-sm font-medium min-w-[60px] text-center backdrop-blur-sm"
         >
           {{ localImageIndex + 1 }} / {{ allImages.length }}
@@ -221,12 +236,18 @@ window.addEventListener('image-wheel-navigate', ((e: CustomEvent) => {
         >
           YouTube
         </div>
+        <div
+          v-else-if="isBilibili"
+          class="px-2 py-1 rounded bg-pink-600/80 text-white text-sm font-medium backdrop-blur-sm flex items-center gap-1"
+        >
+          Bilibili
+        </div>
       </div>
 
       <!-- Center: Zoom controls and Action buttons -->
       <div class="flex items-center justify-center gap-2">
         <!-- Zoom controls (only for images) -->
-        <template v-if="!isYouTube">
+        <template v-if="!isVideo">
           <button
             class="px-2 py-1.5 rounded bg-black/50 hover:bg-black/70 text-white transition-all duration-200 hover:scale-105 active:scale-95"
             :disabled="viewer.scale.value <= 0.5"
@@ -252,7 +273,7 @@ window.addEventListener('image-wheel-navigate', ((e: CustomEvent) => {
 
         <!-- Action buttons -->
         <button
-          v-if="!isYouTube"
+          v-if="!isVideo"
           class="px-2 py-1.5 rounded bg-black/50 hover:bg-black/70 text-white transition-all duration-200 hover:scale-105 active:scale-95"
           :title="t('common.contextMenu.copyImage')"
           @click="handleViewerAction('copyImage')"
@@ -260,7 +281,7 @@ window.addEventListener('image-wheel-navigate', ((e: CustomEvent) => {
           <PhCopy :size="20" />
         </button>
         <button
-          v-if="!isYouTube"
+          v-if="!isVideo"
           class="px-2 py-1.5 rounded bg-black/50 hover:bg-black/70 text-white transition-all duration-200 hover:scale-105 active:scale-95"
           :title="t('common.contextMenu.downloadImage')"
           @click="handleViewerAction('downloadImage')"
@@ -295,7 +316,7 @@ window.addEventListener('image-wheel-navigate', ((e: CustomEvent) => {
       </div>
     </div>
 
-    <!-- Navigation buttons (available for both images and YouTube videos) -->
+    <!-- Navigation buttons (available for both images and videos) -->
     <template v-if="viewer.canNavigatePrevious">
       <button
         class="absolute top-[calc(50%-64px-8px)] left-4 -translate-y-1/2 w-12 h-12 rounded text-white text-4xl flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95 z-10"
@@ -349,6 +370,31 @@ window.addEventListener('image-wheel-navigate', ((e: CustomEvent) => {
         </div>
       </div>
 
+      <!-- Bilibili video player -->
+      <div
+        v-else-if="isBilibili && bilibiliVideoUrl"
+        class="flex-1 flex items-center justify-center w-full min-h-0"
+      >
+        <div class="relative w-full h-full max-w-5xl max-h-[80vh]">
+          <iframe
+            :src="bilibiliVideoUrl"
+            :title="article?.title || ''"
+            class="w-full h-full border-none rounded-lg"
+            allow="
+              accelerometer;
+              autoplay;
+              clipboard-write;
+              encrypted-media;
+              gyroscope;
+              picture-in-picture;
+              web-share;
+            "
+            allowfullscreen
+            sandbox="allow-forms allow-scripts allow-same-origin allow-presentation"
+          />
+        </div>
+      </div>
+
       <!-- Image viewer -->
       <div
         v-else
@@ -388,9 +434,9 @@ window.addEventListener('image-wheel-navigate', ((e: CustomEvent) => {
         />
       </div>
 
-      <!-- Thumbnail strip (only show for images, not YouTube videos) -->
+      <!-- Thumbnail strip (only show for images, not videos) -->
       <ThumbnailStrip
-        v-if="!isYouTube"
+        v-if="!isVideo"
         :images="allImages"
         :current-index="localImageIndex"
         :show="showThumbnailStrip"
@@ -415,7 +461,7 @@ window.addEventListener('image-wheel-navigate', ((e: CustomEvent) => {
             {{ t('article.action.viewOriginal') }}
           </button>
           <button
-            v-if="!isYouTube"
+            v-if="!isVideo"
             class="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-md text-sm whitespace-nowrap transition-all duration-200"
             :title="t('article.action.viewArticle')"
             @click="handleViewerAction('openArticleDetail')"

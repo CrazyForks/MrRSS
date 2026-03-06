@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
-import { PhImage, PhHeart, PhYoutubeLogo } from '@phosphor-icons/vue';
+import { PhImage, PhHeart, PhPlay } from '@phosphor-icons/vue';
 import { computed } from 'vue';
 import type { Article } from '@/types/models';
 import { getProxiedMediaUrl } from '@/utils/mediaProxy';
 import { isYouTubeArticle, extractYouTubeVideoId, getYouTubeThumbnailUrl } from '@/utils/youtube';
+import { isBilibiliArticle } from '@/utils/bilibili';
 
 interface Props {
   article: Article;
@@ -26,7 +27,36 @@ const emit = defineEmits<{
 const isYouTube = computed(() => isYouTubeArticle(props.article));
 
 /**
- * Get the display URL (image or YouTube thumbnail)
+ * Check if this article has a Bilibili video
+ */
+const isBilibili = computed(() => isBilibiliArticle(props.article));
+
+/**
+ * Check if this article has any video (YouTube or Bilibili)
+ */
+const isVideo = computed(() => isYouTube.value || isBilibili.value);
+
+/**
+ * Get platform badge icon path
+ */
+const platformBadge = computed(() => {
+  if (isYouTube.value) {
+    return {
+      label: 'YouTube',
+      iconPath: '/assets/video_icons/youtube.svg',
+    };
+  }
+  if (isBilibili.value) {
+    return {
+      label: 'Bilibili',
+      iconPath: '/assets/video_icons/bilibili.svg',
+    };
+  }
+  return null;
+});
+
+/**
+ * Get the display URL (image, YouTube thumbnail, or Bilibili thumbnail)
  */
 const displayUrl = computed(() => {
   if (isYouTube.value && props.article.video_url) {
@@ -35,8 +65,12 @@ const displayUrl = computed(() => {
       return getYouTubeThumbnailUrl(videoId, 'high');
     }
   }
+  // For Bilibili, use the article's image_url which contains the thumbnail from RSS
+  if (isBilibili.value && props.article.image_url) {
+    return getProxiedMediaUrl(props.article.image_url, undefined, true);
+  }
   // Use proxy with force_cache=true for cover images
-  return getProxiedMediaUrl(props.article.image_url, undefined, true);
+  return getProxiedMediaUrl(props.article.image_url || '', undefined, true);
 });
 
 /**
@@ -90,19 +124,28 @@ function formatDate(dateString: string): string {
     >
       <img :src="displayUrl" :alt="article.title" class="w-full h-auto block" loading="lazy" />
 
-      <!-- YouTube indicator -->
+      <!-- Platform badge (top-left) -->
       <div
-        v-if="isYouTube"
+        v-if="platformBadge"
+        class="absolute top-2 left-2 px-2 py-1 rounded-md bg-white/90 dark:bg-gray-800/90 text-gray-900 dark:text-white text-xs font-semibold shadow-lg z-10 flex items-center gap-1.5 backdrop-blur-sm border border-white/20"
+      >
+        <img :src="platformBadge.iconPath" class="w-4 h-4" alt="" />
+        <span>{{ platformBadge.label }}</span>
+      </div>
+
+      <!-- Unified play button (center) -->
+      <div
+        v-if="isVideo"
         class="absolute inset-0 flex items-center justify-center pointer-events-none"
       >
-        <div class="bg-red-600/90 rounded-full p-4 shadow-lg">
-          <PhYoutubeLogo :size="32" weight="fill" class="text-white" />
+        <div class="bg-gray-800/70 rounded-full p-4 shadow-lg backdrop-blur-sm">
+          <PhPlay :size="32" weight="fill" class="text-white" />
         </div>
       </div>
 
       <!-- Image count indicator -->
       <div
-        v-if="imageCount > 1 && !isYouTube"
+        v-if="imageCount > 1 && !isVideo"
         class="absolute bottom-2 left-2 px-2 py-1 rounded-full bg-black/60 text-white text-xs font-semibold backdrop-blur-sm z-10 flex items-center gap-1 transition-all duration-200"
         :class="{ 'group-hover:bottom-20': !showTextOverlay }"
       >
