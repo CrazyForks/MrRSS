@@ -3,6 +3,7 @@ package rules
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"regexp"
 	"strings"
@@ -125,6 +126,18 @@ func (e *Engine) ApplyRulesToArticles(articles []models.Article) (int, error) {
 		return 0, err
 	}
 
+	// Collect feed IDs for batch tag loading
+	feedIDs := make([]int64, len(feeds))
+	for i, feed := range feeds {
+		feedIDs[i] = feed.ID
+	}
+
+	// Batch load all tags at once (fixes N+1 query problem)
+	tagsMap, err := e.db.GetTagsForFeeds(feedIDs)
+	if err != nil {
+		return 0, fmt.Errorf("failed to load tags for feeds: %w", err)
+	}
+
 	// Create maps of feed ID to feed data
 	feedCategories := make(map[int64]string)
 	feedTitles := make(map[int64]string)
@@ -140,8 +153,8 @@ func (e *Engine) ApplyRulesToArticles(articles []models.Article) (int, error) {
 		feedIsImageMode[feed.ID] = feed.IsImageMode
 		feedIsFreshRSS[feed.ID] = feed.IsFreshRSSSource
 
-		// Build tag names list for this feed
-		tags, _ := e.db.GetFeedTags(feed.ID)
+		// Build tag names list for this feed from pre-loaded tags
+		tags := tagsMap[feed.ID]
 		tagNames := make([]string, len(tags))
 		for i, tag := range tags {
 			tagNames[i] = tag.Name
@@ -212,6 +225,18 @@ func (e *Engine) ApplyRule(rule Rule) (int, error) {
 		return 0, err
 	}
 
+	// Collect feed IDs for batch tag loading
+	feedIDs := make([]int64, len(feeds))
+	for i, feed := range feeds {
+		feedIDs[i] = feed.ID
+	}
+
+	// Batch load all tags at once (fixes N+1 query problem)
+	tagsMap, err := e.db.GetTagsForFeeds(feedIDs)
+	if err != nil {
+		return 0, fmt.Errorf("failed to load tags for feeds: %w", err)
+	}
+
 	// Create maps of feed ID to feed data
 	feedCategories := make(map[int64]string)
 	feedTitles := make(map[int64]string)
@@ -227,8 +252,8 @@ func (e *Engine) ApplyRule(rule Rule) (int, error) {
 		feedIsImageMode[feed.ID] = feed.IsImageMode
 		feedIsFreshRSS[feed.ID] = feed.IsFreshRSSSource
 
-		// Build tag names list for this feed
-		tags, _ := e.db.GetFeedTags(feed.ID)
+		// Build tag names list for this feed from pre-loaded tags
+		tags := tagsMap[feed.ID]
 		tagNames := make([]string, len(tags))
 		for i, tag := range tags {
 			tagNames[i] = tag.Name
@@ -275,24 +300,42 @@ func rulesUseArticleContent(rules []Rule) bool {
 }
 
 // matchesConditions checks if an article matches the rule conditions
+// Operator precedence: NOT > AND > OR
 func matchesConditions(article models.Article, conditions []Condition, feedCategories map[int64]string, feedTitles map[int64]string, feedTypes map[int64]string, feedIsImageMode map[int64]bool, feedIsFreshRSS map[int64]bool, feedTags map[int64][]string, articleContents map[int64]string) bool {
 	// If no conditions, apply to all articles
 	if len(conditions) == 0 {
 		return true
 	}
 
-	result := evaluateCondition(article, conditions[0], feedCategories, feedTitles, feedTypes, feedIsImageMode, feedIsFreshRSS, feedTags, articleContents)
+	// Step 1: Evaluate all individual conditions (NOT is applied at this level)
+	conditionResults := make([]bool, len(conditions))
+	for i, condition := range conditions {
+		conditionResults[i] = evaluateCondition(article, condition, feedCategories, feedTitles, feedTypes, feedIsImageMode, feedIsFreshRSS, feedTags, articleContents)
+	}
 
-	for i := 1; i < len(conditions); i++ {
-		condition := conditions[i]
-		conditionResult := evaluateCondition(article, condition, feedCategories, feedTitles, feedTypes, feedIsImageMode, feedIsFreshRSS, feedTags, articleContents)
-
-		switch condition.Logic {
-		case "and":
-			result = result && conditionResult
-		case "or":
-			result = result || conditionResult
+	// Step 2: Process all AND connections first (higher precedence)
+	// We merge conditions connected by AND into a single result
+	i := 0
+	for i < len(conditionResults) {
+		if i > 0 && conditions[i].Logic == "and" {
+			// Merge with previous result using AND
+			conditionResults[i-1] = conditionResults[i-1] && conditionResults[i]
+			// Remove current element
+			conditionResults = append(conditionResults[:i], conditionResults[i+1:]...)
+			conditions = append(conditions[:i], conditions[i+1:]...)
+		} else {
+			i++
 		}
+	}
+
+	// Step 3: Process all OR connections (lower precedence)
+	if len(conditionResults) == 0 {
+		return true
+	}
+
+	result := conditionResults[0]
+	for i := 1; i < len(conditionResults); i++ {
+		result = result || conditionResults[i]
 	}
 
 	return result

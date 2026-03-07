@@ -24,10 +24,12 @@ import { SettingGroup, ButtonControl } from '@/components/settings';
 import BatchActionsDropdown from './BatchActionsDropdown.vue';
 import BatchTagSelectorModal from './BatchTagSelectorModal.vue';
 import { useFeedManagement } from '@/composables/feed/useFeedManagement';
+import { useSidebar } from '@/composables/core/useSidebar';
 
 const store = useAppStore();
 const { t, locale } = useI18n();
 const { addTagsToFeeds } = useFeedManagement();
+const { expandCategoryForFeed } = useSidebar();
 
 // Error tooltip state
 const errorTooltipStates = ref<Record<number, boolean>>({});
@@ -301,8 +303,14 @@ async function handleFeedClick(feed: Feed, event: Event) {
   }
   // Reset to 'all' filter first to ensure proper navigation
   await store.setFilter('all');
+  // Wait for isLoading to be false before selecting feed
+  while (store.isLoading) {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
   // Select the feed and emit event to close settings modal
   store.setFeed(feed.id);
+  // Auto-expand the category containing this feed
+  expandCategoryForFeed(feed.id);
   emit('select-feed', feed.id);
 }
 

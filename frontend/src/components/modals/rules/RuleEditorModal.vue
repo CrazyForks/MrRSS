@@ -14,6 +14,7 @@ import { useRuleConditions } from '@/composables/rules/useRuleConditions';
 import { useRuleActions } from '@/composables/rules/useRuleActions';
 import BaseModal from '@/components/common/BaseModal.vue';
 import ModalFooter from '@/components/common/ModalFooter.vue';
+import TipBox from '@/components/settings/base/TipBox.vue';
 
 const { t } = useI18n();
 
@@ -233,6 +234,9 @@ async function handleClose(checkUnsaved = false): Promise<void> {
             {{ t('modal.rule.condition') }}
           </label>
         </div>
+
+        <!-- Logic Precedence Tip -->
+        <TipBox type="help" :title="t('modal.rule.logicPrecedence')" />
 
         <!-- Empty state -->
         <div

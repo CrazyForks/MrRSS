@@ -5,6 +5,27 @@ All notable changes to MrRSS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.22] - 2026-03-07
+
+**BREAKING**: The logic operator precedence for filter conditions and rules has been standardized to `NOT` > `AND` > `OR`. This means that `NOT` conditions will be evaluated first, followed by `AND`, and then `OR`. Please review your existing filters and rules to ensure they behave as expected with this precedence.
+
+### Added
+
+- Supported floating TOC feature for articles. (@MidnightCrowing)
+- Supported Miniflux format OPML import. (#768)
+- Supported displaying Youtube and Bilibili video in multimedia gallery view.
+
+### Changed
+
+- Optimized RSSHub connection handling to improve performance and reliability.
+- Changed evaluation methods for filter conditions and added logic precedence tips in filter and rule modals. (#756)
+
+### Fixed
+
+- Fixed an issue where the advanced settings for a RSSHub feed can not be saved correctly.
+- Enhanced FetchAll to skip feeds with custom refresh intervals. (#774)
+- Resolved multiple minor styling inconsistencies. (#751, #752, #753, #755)
+
 ## [1.3.21] - 2026-02-27
 
 ### Added

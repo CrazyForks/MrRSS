@@ -9,6 +9,7 @@ import { useFilterConditions } from '@/composables/filter/useFilterConditions';
 import RuleConditionItem from '../rules/RuleConditionItem.vue';
 import BaseModal from '@/components/common/BaseModal.vue';
 import ModalFooter from '@/components/common/ModalFooter.vue';
+import TipBox from '@/components/settings/base/TipBox.vue';
 
 const { t } = useI18n();
 
@@ -157,6 +158,9 @@ function save() {
         <h4 class="text-sm font-medium text-text-primary mb-3">
           {{ t('modal.filter.filterConditions') }}
         </h4>
+
+        <!-- Logic Precedence Tip -->
+        <TipBox type="help" class="mb-4" :title="t('modal.filter.logicPrecedence')" />
 
         <!-- Empty state -->
         <div v-if="conditions.length === 0" class="text-center text-text-secondary py-8">
