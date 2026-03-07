@@ -246,6 +246,14 @@ func extractAudioURL(item *gofeed.Item) string {
 
 // extractVideoURL extracts the video URL from a feed item (for YouTube and Bilibili videos)
 func extractVideoURL(item *gofeed.Item) string {
+	// First check if this is a Bilibili video with iframe in content
+	// Some RSSHub feeds might include iframe in description/content with complete parameters (aid, cid, bvid)
+	// This should take priority over generating a simplified URL from the link
+	content := ExtractContent(item)
+	if bilibiliURL := extractBilibiliVideoURL(content); bilibiliURL != "" {
+		return bilibiliURL
+	}
+
 	// Check if this is a Bilibili video link (similar to YouTube detection)
 	// Bilibili URLs: https://www.bilibili.com/video/BV...
 	if item.Link != "" && strings.Contains(item.Link, "bilibili.com/video/") {
@@ -255,13 +263,6 @@ func extractVideoURL(item *gofeed.Item) string {
 			// Return embed URL for Bilibili player
 			return "https://www.bilibili.com/blackboard/html5mobileplayer.html?bvid=" + bvid + "&autoplay=0"
 		}
-	}
-
-	// Fallback: check if this is a Bilibili video with iframe in content
-	// Some RSSHub feeds might include iframe in description/content
-	content := ExtractContent(item)
-	if bilibiliURL := extractBilibiliVideoURL(content); bilibiliURL != "" {
-		return bilibiliURL
 	}
 
 	// Check if this is a YouTube link (watch, youtu.be, or shorts)
