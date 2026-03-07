@@ -137,6 +137,8 @@ onMounted(async () => {
 
   // Listen for layout mode changes
   window.addEventListener('layout-mode-changed', handleLayoutModeChange);
+  // Listen for category expansion events
+  window.addEventListener('categories-expanded', handleCategoriesExpanded);
 });
 
 // Handle layout mode changes
@@ -146,8 +148,19 @@ function handleLayoutModeChange() {
   });
 }
 
+// Handle categories expanded event
+function handleCategoriesExpanded() {
+  // Reload openCategories from localStorage
+  const savedCategories = localStorage.getItem('openCategories');
+  if (savedCategories) {
+    const categories = JSON.parse(savedCategories);
+    openCategories.value = new Set(categories);
+  }
+}
+
 onUnmounted(() => {
   window.removeEventListener('layout-mode-changed', handleLayoutModeChange);
+  window.removeEventListener('categories-expanded', handleCategoriesExpanded);
 });
 
 // Edit mode for drag reordering
@@ -170,6 +183,7 @@ const {
   searchQuery,
   onFeedContextMenu,
   onCategoryContextMenu,
+  openCategories,
 } = useSidebar();
 
 // Track if we should collapse after selection
