@@ -266,9 +266,9 @@ func (t *CustomTranslator) extractByPath(data interface{}, path string) (interfa
 // Supported placeholders: {{text}}, {{target_lang}}, {{source_lang}}
 func (t *CustomTranslator) replacePlaceholders(template, text, targetLang string) string {
 	result := template
-	result = strings.ReplaceAll(result, "{{text}}", escapeJSONString(text))
-	result = strings.ReplaceAll(result, "{{target_lang}}", targetLang)
-	result = strings.ReplaceAll(result, "{{source_lang}}", "auto")
+	result = replaceJSONPlaceholder(result, "{{text}}", text)
+	result = replaceJSONPlaceholder(result, "{{target_lang}}", targetLang)
+	result = replaceJSONPlaceholder(result, "{{source_lang}}", "auto")
 	return result
 }
 
@@ -285,9 +285,27 @@ func (t *CustomTranslator) mapLanguageCode(lang string) string {
 	return lang
 }
 
-// escapeJSONString escapes special characters in a JSON string
-func escapeJSONString(s string) string {
-	// Simple JSON escaping - in production, use json.Marshal
+// replaceJSONPlaceholder keeps quoted placeholders valid JSON while still
+// supporting unquoted placeholders for callers who want a full JSON string value.
+func replaceJSONPlaceholder(template, placeholder, value string) string {
+	quotedPlaceholder := `"` + placeholder + `"`
+	if strings.Contains(template, quotedPlaceholder) {
+		return strings.ReplaceAll(template, placeholder, escapeJSONStringContent(value))
+	}
+
+	return strings.ReplaceAll(template, placeholder, marshalJSONString(value))
+}
+
+// escapeJSONStringContent escapes a string for use inside an existing JSON string literal.
+func escapeJSONStringContent(s string) string {
+	escaped := marshalJSONString(s)
+	if len(escaped) >= 2 {
+		return escaped[1 : len(escaped)-1]
+	}
+	return escaped
+}
+
+func marshalJSONString(s string) string {
 	b, _ := json.Marshal(s)
 	return string(b)
 }
