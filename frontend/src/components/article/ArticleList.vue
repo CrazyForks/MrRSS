@@ -551,8 +551,13 @@ async function markAllAsRead(): Promise<void> {
         articleIds.map((id) => fetch(`/api/articles/read?id=${id}&read=true`, { method: 'POST' }))
       );
 
-      // Refresh articles and counts
-      await store.fetchArticles();
+      articleIds.forEach((id) => temporarilyKeepArticles.value.add(id));
+      store.setFilteredArticlesFromServer(
+        filteredArticlesFromServer.value.map((article) => ({ ...article, is_read: true }))
+      );
+      store.articles = store.articles.map((article) =>
+        articleIds.includes(article.id) ? { ...article, is_read: true } : article
+      );
       await store.fetchUnreadCounts();
       await store.fetchFilterCounts();
       window.showToast(t('article.action.markedAllAsRead'), 'success');

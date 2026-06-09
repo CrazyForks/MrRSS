@@ -102,6 +102,7 @@ onMounted(async () => {
   // Load remaining settings (theme and other settings are already loaded in main.ts)
   let updateInterval = 10;
   let lastGlobalRefresh = '';
+  let updateCheckEnabled = true;
 
   try {
     const res = await fetch('/api/settings');
@@ -133,6 +134,8 @@ onMounted(async () => {
       lastGlobalRefresh = data.last_global_refresh;
     }
 
+    updateCheckEnabled = data.update_check_enabled !== 'false';
+
     // Load saved shortcuts
     if (data.shortcuts) {
       try {
@@ -146,19 +149,21 @@ onMounted(async () => {
     console.error('Error loading initial settings:', e);
   }
 
-  // Check for updates on startup (silent mode - don't show toast if up to date)
-  setTimeout(async () => {
-    try {
-      await checkForUpdates(true);
+  if (updateCheckEnabled) {
+    // Check for updates on startup (silent mode - don't show toast if up to date)
+    setTimeout(async () => {
+      try {
+        await checkForUpdates(true);
 
-      // If update is available, show dialog for user to manually confirm
-      if (updateInfo.value && updateInfo.value.has_update) {
-        showUpdateDialog.value = true;
+        // If update is available, show dialog for user to manually confirm
+        if (updateInfo.value && updateInfo.value.has_update) {
+          showUpdateDialog.value = true;
+        }
+      } catch (e) {
+        console.error('Error checking for updates:', e);
       }
-    } catch (e) {
-      console.error('Error checking for updates:', e);
-    }
-  }, 3000); // Check 3 seconds after startup
+    }, 3000); // Check 3 seconds after startup
+  }
 
   // Defer heavy operations to allow UI to render first
   setTimeout(() => {

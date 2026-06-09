@@ -1085,6 +1085,8 @@ const zh: TranslationMessages = {
       latestVersion: '最新版本',
       noInstallerAvailable: '没有适用于您平台的安装程序。请手动从以下地址下载',
       notNow: '暂不更新',
+      updateCheckEnabled: '启动时检查更新',
+      updateCheckEnabledDesc: '发现新版本时自动显示更新提示',
       updateAvailable: '有可用更新',
       updateFailed: '上次更新失败',
       updateNow: '立即更新',

@@ -1108,6 +1108,8 @@ const en: TranslationMessages = {
       noInstallerAvailable:
         'No installer available for your platform. Please download manually from',
       notNow: 'Not Now',
+      updateCheckEnabled: 'Check for Updates on Startup',
+      updateCheckEnabledDesc: 'Show an update prompt automatically when a new version is available',
       updateAvailable: 'Update available',
       updateFailed: 'Last update failed',
       updateNow: 'Update Now',

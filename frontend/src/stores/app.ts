@@ -44,7 +44,7 @@ export interface AppActions {
   loadMore: () => Promise<void>;
   fetchFeeds: () => Promise<void>;
   fetchUnreadCounts: () => Promise<void>;
-  markAllAsRead: (feedId?: number) => Promise<void>;
+  markAllAsRead: (feedId?: number, category?: string) => Promise<void>;
   updateArticleSummary: (articleId: number, summary: string) => void;
   toggleTheme: () => void;
   setTheme: (preference: ThemePreference) => void;
@@ -317,9 +317,16 @@ export const useAppStore = defineStore('app', () => {
         ? `/api/articles/mark-all-read?${params.toString()}`
         : '/api/articles/mark-all-read';
       await fetch(url, { method: 'POST' });
-      // Refresh articles and unread counts
-      await fetchArticles();
+      articles.value = articles.value.map((article) => {
+        if (feedId && article.feed_id !== feedId) return article;
+        if (category !== undefined) {
+          const feed = feedMap.value.get(article.feed_id);
+          if ((feed?.category || '') !== category) return article;
+        }
+        return { ...article, is_read: true };
+      });
       await fetchUnreadCounts();
+      await fetchFilterCounts();
     } catch {
       // Error handled silently
     }
