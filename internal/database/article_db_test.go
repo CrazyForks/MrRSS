@@ -3,6 +3,7 @@ package database_test
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,6 +22,104 @@ func setupDBWithFeed(t *testing.T) *dbpkg.DB {
 	}
 	_, _ = res.LastInsertId()
 	return db
+}
+
+func TestCleanupBySizePreservesUnreadMetadataAndDeletesContentFirst(t *testing.T) {
+	db := setupDBWithFeed(t)
+	if err := db.SetSetting("max_cache_size_mb", "1"); err != nil {
+		t.Fatalf("SetSetting error: %v", err)
+	}
+
+	var feedID int64
+	if err := db.QueryRow(`SELECT id FROM feeds WHERE url = ?`, "https://example.com/feed").Scan(&feedID); err != nil {
+		t.Fatalf("scan feed id: %v", err)
+	}
+
+	res, err := db.Exec(
+		`INSERT INTO articles (feed_id, title, url, published_at, is_read, is_favorite, is_read_later, unique_id) VALUES (?, ?, ?, ?, 0, 0, 0, ?)`,
+		feedID,
+		"Old unread article",
+		"https://example.com/old",
+		time.Now().AddDate(-10, 0, 0),
+		"cleanup-preserve-unread",
+	)
+	if err != nil {
+		t.Fatalf("insert article: %v", err)
+	}
+	articleID, _ := res.LastInsertId()
+
+	if err := db.SetArticleContent(articleID, strings.Repeat("content ", 200000)); err != nil {
+		t.Fatalf("SetArticleContent error: %v", err)
+	}
+
+	deleted, err := db.CleanupBySize()
+	if err != nil {
+		t.Fatalf("CleanupBySize error: %v", err)
+	}
+	if deleted == 0 {
+		t.Fatalf("expected cleanup to delete cached content")
+	}
+
+	var isRead bool
+	if err := db.QueryRow(`SELECT is_read FROM articles WHERE id = ?`, articleID).Scan(&isRead); err != nil {
+		t.Fatalf("expected article metadata to remain: %v", err)
+	}
+	if isRead {
+		t.Fatalf("expected unread state to be preserved")
+	}
+
+	_, found, err := db.GetArticleContent(articleID)
+	if err != nil {
+		t.Fatalf("GetArticleContent error: %v", err)
+	}
+	if found {
+		t.Fatalf("expected cached article content to be removed")
+	}
+}
+
+func TestGetArticlesWithUnreadFilterCombinesWithFavorites(t *testing.T) {
+	db := setupDBWithFeed(t)
+
+	var feedID int64
+	if err := db.QueryRow(`SELECT id FROM feeds WHERE url = ?`, "https://example.com/feed").Scan(&feedID); err != nil {
+		t.Fatalf("scan feed id: %v", err)
+	}
+
+	rows := []struct {
+		title      string
+		url        string
+		isRead     int
+		isFavorite int
+	}{
+		{"Unread favorite", "https://example.com/unread-favorite", 0, 1},
+		{"Read favorite", "https://example.com/read-favorite", 1, 1},
+		{"Unread normal", "https://example.com/unread-normal", 0, 0},
+	}
+	for _, row := range rows {
+		if _, err := db.Exec(
+			`INSERT INTO articles (feed_id, title, url, published_at, is_read, is_favorite, is_read_later, unique_id) VALUES (?, ?, ?, ?, ?, ?, 0, ?)`,
+			feedID,
+			row.title,
+			row.url,
+			time.Now(),
+			row.isRead,
+			row.isFavorite,
+			row.url,
+		); err != nil {
+			t.Fatalf("insert article %q: %v", row.title, err)
+		}
+	}
+
+	articles, err := db.GetArticlesWithUnreadFilter("favorites", 0, "", false, true, 10, 0)
+	if err != nil {
+		t.Fatalf("GetArticlesWithUnreadFilter error: %v", err)
+	}
+	if len(articles) != 1 {
+		t.Fatalf("expected 1 unread favorite, got %d", len(articles))
+	}
+	if articles[0].Title != "Unread favorite" || articles[0].IsRead || !articles[0].IsFavorite {
+		t.Fatalf("unexpected article returned: %+v", articles[0])
+	}
 }
 
 func TestSaveAndGetArticle(t *testing.T) {

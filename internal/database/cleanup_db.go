@@ -150,9 +150,9 @@ func (db *DB) ShouldCleanupBeforeSave() (bool, error) {
 	return currentSizeMB >= threshold, nil
 }
 
-// CleanupBySize removes oldest articles to keep database under max_cache_size_mb limit.
-// Protects favorited and read later articles.
-// Uses priority order: oldest read articles first, then older unread articles.
+// CleanupBySize reduces cached content first to keep database under max_cache_size_mb.
+// Article metadata is preserved whenever possible so refreshed feeds do not
+// reinsert old read items as new articles after cleanup.
 func (db *DB) CleanupBySize() (int64, error) {
 	db.WaitForReady()
 
@@ -181,7 +181,32 @@ func (db *DB) CleanupBySize() (int64, error) {
 	totalDeleted := int64(0)
 	targetSizeMB := float64(maxSizeMB) * 0.95 // Aim for 95% of limit
 
-	// Step 1: Delete oldest read articles (not favorited, not read later)
+	// Step 1: Delete oldest cached article contents. This saves most space while
+	// keeping article metadata, read status, favorites, and dedupe keys intact.
+	for currentSizeMB > targetSizeMB {
+		result, err := db.Exec(`
+			DELETE FROM article_contents
+			WHERE article_id IN (
+				SELECT article_id FROM article_contents
+				ORDER BY fetched_at ASC
+				LIMIT 100
+			)
+		`)
+		if err != nil {
+			break
+		}
+
+		count, _ := result.RowsAffected()
+		if count == 0 {
+			break // No more cached content to delete
+		}
+
+		totalDeleted += count
+		currentSizeMB, _ = db.GetDatabaseSizeMB()
+		log.Printf("Deleted %d cached article contents, current size: %.2f MB", count, currentSizeMB)
+	}
+
+	// Step 2: If still over limit, delete oldest read article metadata as a last resort.
 	for currentSizeMB > targetSizeMB {
 		result, err := db.Exec(`
 			DELETE FROM articles
@@ -205,33 +230,7 @@ func (db *DB) CleanupBySize() (int64, error) {
 
 		totalDeleted += count
 		currentSizeMB, _ = db.GetDatabaseSizeMB()
-		log.Printf("Deleted %d read articles, current size: %.2f MB", count, currentSizeMB)
-	}
-
-	// Step 2: If still over limit, delete oldest unread articles (not favorited, not read later)
-	for currentSizeMB > targetSizeMB {
-		result, err := db.Exec(`
-			DELETE FROM articles
-			WHERE id IN (
-				SELECT id FROM articles
-				WHERE is_favorite = 0
-				AND is_read_later = 0
-				ORDER BY published_at ASC
-				LIMIT 100
-			)
-		`)
-		if err != nil {
-			break
-		}
-
-		count, _ := result.RowsAffected()
-		if count == 0 {
-			break // No more articles to delete
-		}
-
-		totalDeleted += count
-		currentSizeMB, _ = db.GetDatabaseSizeMB()
-		log.Printf("Deleted %d unread articles, current size: %.2f MB", count, currentSizeMB)
+		log.Printf("Deleted %d read article metadata rows, current size: %.2f MB", count, currentSizeMB)
 	}
 
 	if totalDeleted > 0 {

@@ -94,20 +94,32 @@ const isFilterLoading = computed(() => store.isFilterLoading);
 
 // Computed filtered articles - optimized to avoid excessive recomputation
 const filteredArticles = computed(() => {
+  const usesClientSideUnreadFilter =
+    activeFilters.value.length > 0 || (isAISearchActive.value && aiSearchResults.value.length > 0);
+
   // If AI search is active, use AI search results
   if (isAISearchActive.value && aiSearchResults.value.length > 0) {
-    return aiSearchResults.value;
+    let articles = aiSearchResults.value;
+    if (store.showOnlyUnread) {
+      articles = articles.filter((article) => !article.is_read);
+    }
+    return articles;
   }
 
   let articles = activeFilters.value.length > 0 ? filteredArticlesFromServer.value : store.articles;
 
-  // Only apply filter if showOnlyUnread is enabled
+  // Normal article pages apply showOnlyUnread on the server so pagination does
+  // not return a page of read articles that then disappears client-side.
   // Using a simpler filter that avoids Set.has() calls when possible
-  if (store.showOnlyUnread && temporarilyKeepArticles.value.size > 0) {
+  if (
+    usesClientSideUnreadFilter &&
+    store.showOnlyUnread &&
+    temporarilyKeepArticles.value.size > 0
+  ) {
     articles = articles.filter(
       (article) => !article.is_read || temporarilyKeepArticles.value.has(article.id)
     );
-  } else if (store.showOnlyUnread) {
+  } else if (usesClientSideUnreadFilter && store.showOnlyUnread) {
     // Fast path when no temporarily kept articles
     articles = articles.filter((article) => !article.is_read);
   }

@@ -113,19 +113,19 @@ func HandleFetchFullArticle(h *core.Handler, w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Fetch full content
-	fullContent, err := h.FetchFullArticleContent(article.URL)
-	if err != nil {
-		log.Printf("Error fetching full article content: %v", err)
-		response.Error(w, err, http.StatusInternalServerError)
-		return
-	}
-
-	// Get feed URL to use as referer for image proxying
+	// Get feed URL to use as referer for image proxying and proxy settings for fetching
 	feed, err := h.DB.GetFeedByID(article.FeedID)
 	var feedURL string
 	if err == nil && feed != nil {
 		feedURL = feed.URL
+	}
+
+	// Fetch full content
+	fullContent, err := h.FetchFullArticleContentWithFeed(article.URL, feed)
+	if err != nil {
+		log.Printf("Error fetching full article content: %v", err)
+		response.Error(w, err, http.StatusInternalServerError)
+		return
 	}
 
 	response.JSON(w, map[string]string{

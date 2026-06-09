@@ -233,6 +233,7 @@ const en: TranslationMessages = {
       simplifiedChinese: 'Simplified Chinese',
       spanish: 'Spanish',
       traditionalChinese: 'Traditional Chinese',
+      turkish: 'Turkish',
     },
     toast: {
       autoTranslateEnabled: 'Auto-translate enabled',

@@ -97,6 +97,11 @@ func (db *DB) SaveArticles(ctx context.Context, articles []*models.Article) erro
 // GetArticles retrieves articles with filtering, pagination, and sorting.
 // Optimized to filter feeds first for category queries, reducing JOIN overhead.
 func (db *DB) GetArticles(filter string, feedID int64, category string, showHidden bool, limit, offset int) ([]models.Article, error) {
+	return db.GetArticlesWithUnreadFilter(filter, feedID, category, showHidden, false, limit, offset)
+}
+
+// GetArticlesWithUnreadFilter returns articles with optional read-state filtering.
+func (db *DB) GetArticlesWithUnreadFilter(filter string, feedID int64, category string, showHidden bool, onlyUnread bool, limit, offset int) ([]models.Article, error) {
 	db.WaitForReady()
 
 	// Optimization: For category queries, first get the feed IDs, then query articles
@@ -170,6 +175,10 @@ func (db *DB) GetArticles(filter string, feedID int64, category string, showHidd
 		if feedID <= 0 && category == "" {
 			whereClauses = append(whereClauses, "COALESCE(f.hide_from_timeline, 0) = 0")
 		}
+	}
+
+	if onlyUnread && filter != "unread" {
+		whereClauses = append(whereClauses, "a.is_read = 0")
 	}
 
 	// Apply feed ID filter

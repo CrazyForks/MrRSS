@@ -227,6 +227,7 @@ const zh: TranslationMessages = {
       simplifiedChinese: '简体中文',
       spanish: '西班牙语',
       traditionalChinese: '繁体中文',
+      turkish: '土耳其语',
     },
     toast: {
       autoTranslateEnabled: '自动翻译已启用',

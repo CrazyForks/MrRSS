@@ -185,6 +185,7 @@ export const useAppStore = defineStore('app', () => {
 
     let url = `/api/articles?page=${page.value}&limit=${limit}`;
     if (currentFilter.value) url += `&filter=${currentFilter.value}`;
+    if (showOnlyUnread.value && currentFilter.value !== 'unread') url += '&only_unread=true';
     if (currentFeedId.value) url += `&feed_id=${currentFeedId.value}`;
     if (currentCategory.value !== null)
       url += `&category=${encodeURIComponent(currentCategory.value)}`;
@@ -702,6 +703,9 @@ export const useAppStore = defineStore('app', () => {
   function toggleShowOnlyUnread(): void {
     showOnlyUnread.value = !showOnlyUnread.value;
     localStorage.setItem('showOnlyUnread', String(showOnlyUnread.value));
+    if (currentFilter.value !== 'imageGallery') {
+      void fetchArticles(false);
+    }
   }
 
   function setActiveFilters(filters: FilterCondition[]): void {
