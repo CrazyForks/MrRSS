@@ -367,14 +367,7 @@ function openArticleDetail(): void {
 
   const article = selectedArticle.value;
 
-  // Jump back to the regular article view without using setFeed(), because image-mode
-  // feeds would otherwise route back to the image gallery.
-  store.currentFilter = 'all';
-  store.currentFeedId = article.feed_id;
-  store.currentCategory = null;
-  store.tempSelection = { feedId: article.feed_id, category: null };
-  store.currentArticleId = article.id;
-  void store.fetchArticles();
+  store.selectFeedInArticleList(article.feed_id, article.id);
 
   // Close the image viewer
   closeImageViewer();

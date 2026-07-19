@@ -39,6 +39,7 @@ export interface AppState {
 export interface AppActions {
   setFilter: (filter: Filter) => void;
   setFeed: (feedId: number) => void;
+  selectFeedInArticleList: (feedId: number, articleId?: number) => void;
   setCategory: (category: string) => void;
   fetchArticles: (append?: boolean) => Promise<void>;
   loadMore: () => Promise<void>;
@@ -136,6 +137,17 @@ export const useAppStore = defineStore('app', () => {
       tempSelection.value = { feedId, category: null };
       fetchArticles();
     }
+  }
+
+  function selectFeedInArticleList(feedId: number, articleId?: number): void {
+    currentFilter.value = 'all';
+    currentFeedId.value = feedId;
+    currentCategory.value = null;
+    tempSelection.value = { feedId, category: null };
+    if (articleId !== undefined) {
+      currentArticleId.value = articleId;
+    }
+    fetchArticles();
   }
 
   function setCategory(category: string): void {
@@ -825,6 +837,7 @@ export const useAppStore = defineStore('app', () => {
     // Actions
     setFilter,
     setFeed,
+    selectFeedInArticleList,
     setCategory,
     fetchArticles,
     loadMore,
