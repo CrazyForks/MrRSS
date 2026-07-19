@@ -187,7 +187,9 @@ const sortedFeeds = computed(() => {
   return feeds;
 });
 
-const selectableSortedFeeds = computed(() => sortedFeeds.value.filter((f) => !f.is_freshrss_source));
+const selectableSortedFeeds = computed(() =>
+  sortedFeeds.value.filter((f) => !f.is_freshrss_source)
+);
 
 watch(
   () => selectableSortedFeeds.value.map((feed) => feed.id),
