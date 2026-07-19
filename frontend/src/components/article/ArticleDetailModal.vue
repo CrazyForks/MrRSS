@@ -27,6 +27,7 @@ const emit = defineEmits<{
   toggleFavorite: [];
   toggleReadLater: [];
   retryLoadContent: [];
+  reloadContent: [];
 }>();
 
 const { t } = useI18n();
@@ -284,6 +285,10 @@ function handleRetryLoadContent() {
   emit('retryLoadContent');
 }
 
+function handleReloadContent() {
+  emit('reloadContent');
+}
+
 function handleOverlayClick(e: MouseEvent) {
   // Only close if clicking directly on the overlay, not its children
   if (e.target === e.currentTarget) {
@@ -309,7 +314,7 @@ function handleOverlayClick(e: MouseEvent) {
           @toggle-read-later="emit('toggleReadLater')"
           @open-original="openOriginal"
           @toggle-translations="toggleTranslations"
-          @reload-content="handleRetryLoadContent"
+          @reload-content="handleReloadContent"
           @export-to-obsidian="exportToObsidian"
           @export-to-notion="exportToNotion"
           @export-to-zotero="exportToZotero"

@@ -721,6 +721,26 @@ function cardModalRetryLoadContent(): void {
   }
 }
 
+async function cardModalReloadContent(): Promise<void> {
+  if (!cardModalArticle.value) return;
+
+  const article = cardModalArticle.value;
+  isCardModalLoading.value = true;
+  cardModalContent.value = '';
+
+  try {
+    const res = await fetch(`/api/articles/reload-content?id=${article.id}`, { method: 'POST' });
+    if (!res.ok) {
+      throw new Error(t('common.errors.fetchingArticleContent'));
+    }
+    await openCardModal(article);
+  } catch (e) {
+    console.error('Error reloading article content:', e);
+    window.showToast(t('common.errors.fetchingArticleContent'), 'error');
+    isCardModalLoading.value = false;
+  }
+}
+
 // Show "Mark All Visible as Read" button at bottom
 const shouldShowBottomMarkAllRead = computed(() => {
   return (
@@ -1062,6 +1082,7 @@ async function markAllVisibleAsRead(): Promise<void> {
     @toggle-favorite="cardModalToggleFavorite"
     @toggle-read-later="cardModalToggleReadLater"
     @retry-load-content="cardModalRetryLoadContent"
+    @reload-content="cardModalReloadContent"
   />
 
   <!-- Filter Modal - Teleported to body to avoid positioning constraints -->
