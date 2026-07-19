@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fixed Linux release builds by installing GTK4 and WebKitGTK 6.0 development packages before compiling the Wails v3 CLI.
+- Fixed Linux release builds by upgrading Wails v3 to the latest alpha and installing GTK4/WebKitGTK 6.0 build dependencies.
 
 ## [1.3.24] - 2026-07-19
 

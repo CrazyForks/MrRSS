@@ -264,7 +264,7 @@ jobs:
             wget \
             file
 
-          # Verify GTK4/WebKitGTK 6.0 are available before compiling Wails CLI
+          # Verify GTK4/WebKitGTK 6.0 are available for current Wails v3
           pkg-config --modversion gtk4 || exit 1
           pkg-config --modversion webkitgtk-6.0 || exit 1
           echo "GTK4 and WebKitGTK 6.0 installed successfully for Wails v3"
@@ -282,7 +282,7 @@ jobs:
             wget \
             file
 
-          # Verify GTK4/WebKitGTK 6.0 are available before compiling Wails CLI
+          # Verify GTK4/WebKitGTK 6.0 are available for current Wails v3
           pkg-config --modversion gtk4 || exit 1
           pkg-config --modversion webkitgtk-6.0 || exit 1
           echo "GTK4 and WebKitGTK 6.0 installed successfully for Wails v3 ARM64"
@@ -303,7 +303,10 @@ jobs:
       - name: Install Wails CLI
         if: steps.check_artifacts.outputs.skip_build == 'false'
         shell: bash
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
+        run: |
+          WAILS_VERSION=$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)
+          echo "Installing Wails CLI ${WAILS_VERSION}"
+          go install github.com/wailsapp/wails/v3/cmd/wails3@${WAILS_VERSION}
 
       - name: Install frontend dependencies
         if: steps.check_artifacts.outputs.skip_build == 'false'

@@ -47,7 +47,7 @@ sudo apt-get install -y \
 - `libwebkitgtk-6.0-dev`: WebKitGTK 6.0 development headers (for Wails webview, **required for current Wails v3**)
 - `libsoup-3.0-dev`: HTTP library 3.0 (required for Wails v3)
 
-**Important**: Current Wails v3 requires GTK4, WebKitGTK 6.0, and libsoup 3.0. Older WebKitGTK 4.x and GTK3 packages are not sufficient for compiling the Wails v3 CLI.
+**Important**: Current Wails v3 requires GTK4, WebKitGTK 6.0, and libsoup 3.0. Older WebKitGTK 4.x and GTK3 packages are not sufficient.
 
 **Note for Linux Mint**: Also install `libxapp-dev`
 
