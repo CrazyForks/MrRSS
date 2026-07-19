@@ -8,7 +8,7 @@
    <strong>English</strong> | <a href="README_zh.md">简体中文</a>
 </p>
 
-[![Version](https://img.shields.io/badge/version-1.3.24-blue.svg)](https://github.com/WCY-dt/MrRSS/releases)
+[![Version](https://img.shields.io/badge/version-1.3.25-blue.svg)](https://github.com/WCY-dt/MrRSS/releases)
 [![License](https://img.shields.io/badge/license-GPLv3-green.svg)](LICENSE)
 [![Go](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go)](https://go.dev/)
 [![Wails](https://img.shields.io/badge/Wails-v3%20alpha-red)](https://wails.io/)
@@ -70,7 +70,7 @@ Before you begin, ensure you have the following installed:
 
 **Platform-specific requirements:**
 
-- **Linux**: GTK3, WebKit2GTK 4.1, libsoup 3.0, GCC, pkg-config
+- **Linux**: GTK4, WebKitGTK 6.0, libsoup 3.0, GCC, pkg-config
 - **Windows**: MinGW-w64 (for CGO support), NSIS (for installers)
 - **macOS**: Xcode Command Line Tools
 
@@ -78,7 +78,7 @@ For detailed installation instructions, see [Build Requirements](docs/BUILD_REQU
 
 ```bash
 # Quick setup for Linux (Ubuntu 24.04+):
-sudo apt-get install libgtk-3-dev libwebkit2gtk-4.1-dev libsoup-3.0-dev gcc pkg-config
+sudo apt-get install libgtk-4-dev libwebkitgtk-6.0-dev libsoup-3.0-dev gcc pkg-config
 ```
 
 ### Installation

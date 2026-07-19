@@ -256,34 +256,36 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libgtk-3-dev \
-            libwebkit2gtk-4.1-dev \
+            libgtk-4-dev \
+            libwebkitgtk-6.0-dev \
             libsoup-3.0-dev \
             gcc \
             pkg-config \
             wget \
             file
 
-          # Verify webkit2gtk-4.1 is properly installed
-          pkg-config --modversion webkit2gtk-4.1 || exit 1
-          echo "webkit2gtk-4.1 installed successfully for Wails v3"
+          # Verify GTK4/WebKitGTK 6.0 are available before compiling Wails CLI
+          pkg-config --modversion gtk4 || exit 1
+          pkg-config --modversion webkitgtk-6.0 || exit 1
+          echo "GTK4 and WebKitGTK 6.0 installed successfully for Wails v3"
 
       - name: Install Linux dependencies (ARM64)
         if: steps.check_artifacts.outputs.skip_build == 'false' && matrix.platform == 'linux' && matrix.arch == 'arm64'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libgtk-3-dev \
-            libwebkit2gtk-4.1-dev \
+            libgtk-4-dev \
+            libwebkitgtk-6.0-dev \
             libsoup-3.0-dev \
             gcc \
             pkg-config \
             wget \
             file
 
-          # Verify webkit2gtk-4.1 is properly installed
-          pkg-config --modversion webkit2gtk-4.1 || exit 1
-          echo "webkit2gtk-4.1 installed successfully for Wails v3 ARM64"
+          # Verify GTK4/WebKitGTK 6.0 are available before compiling Wails CLI
+          pkg-config --modversion gtk4 || exit 1
+          pkg-config --modversion webkitgtk-6.0 || exit 1
+          echo "GTK4 and WebKitGTK 6.0 installed successfully for Wails v3 ARM64"
 
       - name: Install Windows dependencies (AMD64)
         if: steps.check_artifacts.outputs.skip_build == 'false' && matrix.platform == 'windows' && matrix.arch == 'amd64'
