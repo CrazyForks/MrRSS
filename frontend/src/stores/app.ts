@@ -397,8 +397,60 @@ export const useAppStore = defineStore('app', () => {
     applyTheme();
   }
 
+  async function refreshSelectedFeeds(): Promise<boolean> {
+    let feedIds: number[] = [];
+
+    if (currentFeedId.value) {
+      feedIds = [currentFeedId.value];
+    } else if (currentCategory.value !== null) {
+      feedIds = feeds.value
+        .filter((feed) => {
+          const feedCategory = feed.category || '';
+          if (currentCategory.value === '') {
+            return feedCategory === '';
+          }
+          return (
+            feedCategory === currentCategory.value ||
+            feedCategory.startsWith(`${currentCategory.value}/`)
+          );
+        })
+        .map((feed) => feed.id);
+    }
+
+    const hasScopedSelection = currentFeedId.value !== null || currentCategory.value !== null;
+    if (feedIds.length === 0) {
+      if (hasScopedSelection) {
+        return true;
+      }
+      return false;
+    }
+
+    refreshProgress.value.isRunning = true;
+    try {
+      await Promise.all(
+        feedIds.map(async (id) => {
+          const res = await fetch(`/api/feeds/refresh?id=${id}`, { method: 'POST' });
+          if (!res.ok) {
+            throw new Error(`Feed refresh API returned ${res.status}: ${res.statusText}`);
+          }
+        })
+      );
+      await fetchProgressOnce();
+      pollProgress();
+      return true;
+    } catch (e) {
+      console.error('Error refreshing selected feeds:', e);
+      refreshProgress.value.isRunning = false;
+      return true;
+    }
+  }
+
   // Auto Refresh
   async function refreshFeeds(): Promise<void> {
+    if (await refreshSelectedFeeds()) {
+      return;
+    }
+
     refreshProgress.value.isRunning = true;
     try {
       // First, trigger standard refresh
