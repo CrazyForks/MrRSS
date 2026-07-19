@@ -30,10 +30,10 @@
     "@eslint/js": "^9.39.2",
     "@phosphor-icons/vue": "^2.2.1",
     "highlight.js": "^11.11.1",
-    "katex": "^0.16.45",
+    "katex": "^0.17.0",
     "pinia": "^3.0.4",
     "tailwindcss": "^3.4.17",
-    "vue": "^3.5.31",
+    "vue": "^3.5.39",
     "vue-i18n": "^11.3.1"
   },
   "devDependencies": {
@@ -46,19 +46,19 @@
     "@vue/eslint-config-prettier": "^10.2.0",
     "@vue/test-utils": "^2.4.6",
     "@wailsio/runtime": "^3.0.0-alpha.79",
-    "autoprefixer": "^10.4.27",
+    "autoprefixer": "^10.5.2",
     "cypress": "^15.11.0",
     "eslint": "^9.39.2",
     "eslint-plugin-vue": "^10.8.0",
     "husky": "^9.1.7",
     "jsdom": "^28.1.0",
     "knip": "^6.3.0",
-    "lint-staged": "^16.4.0",
-    "postcss": "^8.5.6",
+    "lint-staged": "^17.0.8",
+    "postcss": "^8.5.16",
     "prettier": "^3.8.1",
     "typescript": "^5.9.3",
-    "vite": "^8.0.5",
-    "vitest": "^4.1.2"
+    "vite": "^8.1.0",
+    "vitest": "^4.1.9"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,vue}": [
