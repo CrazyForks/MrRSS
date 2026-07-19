@@ -77,6 +77,101 @@ func TestCleanupBySizePreservesUnreadMetadataAndDeletesContentFirst(t *testing.T
 	}
 }
 
+func TestCleanupReadArticlesOverPerFeedLimitKeepsFeedsIndependent(t *testing.T) {
+	db := setupDBWithFeed(t)
+
+	var busyFeedID int64
+	if err := db.QueryRow(`SELECT id FROM feeds WHERE url = ?`, "https://example.com/feed").Scan(&busyFeedID); err != nil {
+		t.Fatalf("scan busy feed id: %v", err)
+	}
+	res, err := db.Exec(`INSERT INTO feeds (title, url, category) VALUES (?, ?, ?)`, "Slow Feed", "https://example.com/slow-feed", "blogs")
+	if err != nil {
+		t.Fatalf("insert slow feed: %v", err)
+	}
+	slowFeedID, _ := res.LastInsertId()
+
+	now := time.Now()
+	busyRows := []struct {
+		title       string
+		isRead      int
+		isFavorite  int
+		isReadLater int
+	}{
+		{"busy-newest", 1, 0, 0},
+		{"busy-middle", 1, 0, 0},
+		{"busy-unread-protected", 0, 0, 0},
+		{"busy-readlater-protected", 1, 0, 1},
+		{"busy-favorite-protected", 1, 1, 0},
+		{"busy-oldest-read", 1, 0, 0},
+	}
+	for i, row := range busyRows {
+		_, err := db.Exec(
+			`INSERT INTO articles (feed_id, title, url, published_at, is_read, is_favorite, is_read_later, unique_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			busyFeedID,
+			row.title,
+			"https://example.com/"+row.title,
+			now.Add(-time.Duration(i)*time.Hour),
+			row.isRead,
+			row.isFavorite,
+			row.isReadLater,
+			row.title,
+		)
+		if err != nil {
+			t.Fatalf("insert busy article %q: %v", row.title, err)
+		}
+	}
+
+	for i := 0; i < 2; i++ {
+		title := fmt.Sprintf("slow-%d", i)
+		_, err := db.Exec(
+			`INSERT INTO articles (feed_id, title, url, published_at, is_read, is_favorite, is_read_later, unique_id) VALUES (?, ?, ?, ?, 1, 0, 0, ?)`,
+			slowFeedID,
+			title,
+			"https://example.com/"+title,
+			now.Add(-time.Duration(i)*time.Hour),
+			title,
+		)
+		if err != nil {
+			t.Fatalf("insert slow article %q: %v", title, err)
+		}
+	}
+
+	deleted, err := db.CleanupReadArticlesOverPerFeedLimit(3)
+	if err != nil {
+		t.Fatalf("CleanupReadArticlesOverPerFeedLimit error: %v", err)
+	}
+	if deleted != 1 {
+		t.Fatalf("expected 1 old read article deleted, got %d", deleted)
+	}
+
+	var deletedCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM articles WHERE title = ?`, "busy-oldest-read").Scan(&deletedCount); err != nil {
+		t.Fatalf("count deleted article: %v", err)
+	}
+	if deletedCount != 0 {
+		t.Fatalf("expected oldest unprotected busy article to be deleted")
+	}
+
+	protectedTitles := []string{"busy-unread-protected", "busy-readlater-protected", "busy-favorite-protected"}
+	for _, title := range protectedTitles {
+		var count int
+		if err := db.QueryRow(`SELECT COUNT(*) FROM articles WHERE title = ?`, title).Scan(&count); err != nil {
+			t.Fatalf("count protected article %q: %v", title, err)
+		}
+		if count != 1 {
+			t.Fatalf("expected protected article %q to remain", title)
+		}
+	}
+
+	var slowCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM articles WHERE feed_id = ?`, slowFeedID).Scan(&slowCount); err != nil {
+		t.Fatalf("count slow feed articles: %v", err)
+	}
+	if slowCount != 2 {
+		t.Fatalf("expected slow feed to remain untouched, got %d articles", slowCount)
+	}
+}
+
 func TestGetArticlesWithUnreadFilterCombinesWithFavorites(t *testing.T) {
 	db := setupDBWithFeed(t)
 
