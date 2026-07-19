@@ -244,7 +244,7 @@ function restoreArticleScrollPosition(articleId: number | null | undefined = pro
     return;
   }
 
-  requestAnimationFrame(() => {
+  window.requestAnimationFrame(() => {
     const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
     container.scrollTop = Math.min(savedTop, maxScrollTop);
 

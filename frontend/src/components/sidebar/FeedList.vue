@@ -663,7 +663,9 @@ function handleFilterDragEnd() {
           </div>
 
           <!-- Categories List -->
-          <div class="categories-list sidebar-hover-scrollbar flex-1 overflow-y-auto overflow-x-hidden">
+          <div
+            class="categories-list sidebar-hover-scrollbar flex-1 overflow-y-auto overflow-x-hidden"
+          >
             <SidebarCategory
               v-for="(data, name) in filteredTree.tree"
               :key="name"
