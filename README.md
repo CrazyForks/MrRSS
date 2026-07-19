@@ -18,6 +18,7 @@
 
 - 🌐 **Auto-Translation & Summarization**: Automatically translate article titles and content, and generate concise summaries to help you get information quickly
 - 🤖 **AI-Enhanced Features**: Integrated advanced AI technology for translation, summarization, recommendations, and more, making reading smarter
+- 🧩 **AI Agent Skill**: Release packages include a Codex skill for inspecting feeds, summarizing articles, and operating MrRSS through the local API
 - 🔌 **Rich Plugin Ecosystem**: Supports integration with mainstream tools like Obsidian, Notion, FreshRSS, and RSSHub for easy feature extension
 - 📡 **Diverse Subscription Methods**: Supports URL, XPath, scripts, newsletters, and other feed types to meet different needs
 - 🏭 **Custom Scripts & Automation**: Built-in filters and scripting system supporting highly customizable automation workflows
@@ -47,6 +48,10 @@ Download the latest installer for your platform from the [Releases](https://gith
 - **Windows:** `MrRSS-{version}-windows-{arch}-portable.zip`
 - **Linux:** `MrRSS-{version}-linux-{arch}-portable.tar.gz`
 - **macOS:** `MrRSS-{version}-darwin-{arch}-portable.zip`
+
+**AI Agent Skills:**
+
+- **Codex:** `MrRSS-{version}-skills.zip` ([usage guide](docs/SKILLS.md))
 
 </div>
 
@@ -232,6 +237,7 @@ docker run -d -p 1234:1234 ghcr.io/wcy-dt/mrrss:latest-arm64
 ```
 
 Please refer to the [Server Mode API Documentation](docs/SERVER_MODE/swagger.json) for a complete API reference.
+To let Codex operate MrRSS through this API, install the release skill package described in [MrRSS Skills](docs/SKILLS.md).
 
 </div>
 

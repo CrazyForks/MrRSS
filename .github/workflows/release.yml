@@ -114,6 +114,38 @@ jobs:
           make_latest: ${{ steps.get_version.outputs.is_prerelease == 'false' }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
+  package-skills:
+    name: Package Skills
+    needs: create-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.create-release.outputs.tag }}
+
+      - name: Validate generated skill API reference
+        run: |
+          python skills/mrrss-assistant/scripts/generate_api_reference.py docs/SERVER_MODE/swagger.json skills/mrrss-assistant/references/api.md
+          git diff --exit-code skills/mrrss-assistant/references/api.md
+
+      - name: Package MrRSS skills
+        run: |
+          VERSION="${{ needs.create-release.outputs.version }}"
+          mkdir -p build/skills
+          cd skills
+          zip -r "../build/skills/MrRSS-${VERSION}-skills.zip" mrrss-assistant
+          cd ..
+          unzip -t "build/skills/MrRSS-${VERSION}-skills.zip"
+
+      - name: Upload Skills Release Asset
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.create-release.outputs.tag }}
+          files: build/skills/MrRSS-${{ needs.create-release.outputs.version }}-skills.zip
+          token: ${{ secrets.GITHUB_TOKEN }}
+
   build-release:
     name: Build ${{ matrix.platform }}-${{ matrix.arch }}
     needs: create-release
