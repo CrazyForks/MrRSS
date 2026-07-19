@@ -336,6 +336,7 @@ const en: TranslationMessages = {
       deleteMultipleFeedsTitle: 'Delete Multiple Feeds',
       dragToReorder: 'Drag to reorder or move to another category',
       duplicateFeedURL: 'A feed with this URL already exists',
+      duplicateFeedSelected: 'Opened the existing feed',
       editFeed: 'Edit Feed',
       editSubscription: 'Edit Subscription',
       email: 'Email Newsletter',

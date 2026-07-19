@@ -275,10 +275,16 @@ function toggleSidebar(): void {
   isSidebarOpen.value = !isSidebarOpen.value;
 }
 
-function onFeedAdded(): void {
-  store.fetchFeeds();
+async function onFeedAdded(feedId?: number): Promise<void> {
+  await store.fetchFeeds();
+  if (feedId) {
+    await store.setFilter('all');
+    store.setFeed(feedId);
+  }
   // Start polling for progress as the backend is now fetching articles for the new feed
-  store.pollProgress();
+  if (!feedId) {
+    store.pollProgress();
+  }
 }
 
 function onFeedUpdated(): void {

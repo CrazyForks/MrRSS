@@ -328,6 +328,7 @@ const zh: TranslationMessages = {
       deleteMultipleFeedsTitle: '删除多个订阅',
       dragToReorder: '拖拽可以重新排序或移动到其他分类',
       duplicateFeedURL: '已存在相同 URL 的订阅',
+      duplicateFeedSelected: '已跳转到现有订阅',
       editFeed: '编辑订阅',
       editSubscription: '编辑订阅',
       email: '邮件订阅',
